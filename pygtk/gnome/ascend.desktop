@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+Name=ASCEND
+GenericName=ASCEND
+Comment=Solve mathematical models in science and engineering
+TryExec=ascend
+Exec=ascend
+StartupNotify=true
+Terminal=false
+Type=Application
+Icon=ascend-app.png
+Categories=Education;Math;Science;
+MimeType=text/x-ascend-model;
+GenericName[en_AU]=ASCEND

@@ -1,0 +1,36 @@
+REQUIRE "steam/iapwssat.a4c";
+
+MODEL satsteamstream REFINES iapwssat;
+	mdot IS_A mass_rate;
+METHODS
+METHOD default_self;
+	rho := 200 {kg/m^3};
+	rho.nominal := 10 {kg/m^3};
+	mdot := 0.1 {kg/s};
+	mdot.nominal := 0.1 {kg/s};
+	RUN iapwssat::default_self;
+END default_self;
+METHOD specify;
+	RUN iapwssat::specify;
+	FIX mdot;
+END specify;
+METHOD values;
+	RUN iapwssat::values;
+	T := 373.15 {K};
+	mdot := 0.1 {kg/s};
+END values;
+METHOD bound_self;
+	RUN iapwssat::bound_self;
+	mdot.lower_bound := 0 {kg/s};
+END bound_self;
+METHOD on_load;
+	RUN bound_self;
+	RUN reset;
+	RUN values;
+END on_load;
+METHOD self_test;
+	ASSERT mdot == 0.1 {kg/s};
+	ASSERT abs(p - 101.418{kPa}) < 0.0005{kPa};
+	ASSERT abs(h - 1547.4616{kJ/kg}) < 0.0005{kJ/kg};
+END self_test;
+END satsteamstream;

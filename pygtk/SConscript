@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+Import('env')
+
+import platform
+
+#---------------------------------------------
+# CONFIG & runtime shell script for posix
+
+configpy = env.SubstInFile(source='config.py.in')
+
+ascendcmd = env.SubstInFile(source='ascend.in')
+env.AddPostAction(ascendcmd, 'chmod 755 $TARGET')
+
+if platform.system() != "Windows" or env.has_key('IS_MINGW'):
+	envdev = env.Clone()
+	# add 'WITH_SOLVERS' to the SUBST_DICT used by ascdev...
+	envdev['SUBST_DICT']['@WITH_SOLVERS@'] = ",".join(env.get('WITH_SOLVERS'))
+	ascdevcmd = envdev.SubstInFile(source='ascdev.in')
+	env.AddPostAction(ascdevcmd, 'chmod 755 $TARGET')
+
+#---------------------------------------------
+# INSTALLATION
+
+# python compile bytecode
+
+import py_compile
+def pyc_build(target, source, env):
+	py_compile.compile(str(source[0]),str(target[0]),"",True)
+	return None	
+env.Append(BUILDERS = {'PYC' : Builder(action = pyc_build,suffix='.pyc',src_suffix='.py')})
+
+if env.get('CAN_INSTALL'):
+	env.InstallProgram(Dir(env.subst("$INSTALL_ROOT$INSTALL_BIN")),ascendcmd)
+
+	import glob
+	pythonfiles = glob.glob("*.py")
+
+	pythonpycs = []
+	for f in pythonfiles:
+		pythonpycs.append( env.PYC(f) )
+
+	for f in pythonfiles + pythonpycs:
+		env.InstallShared(Dir(env.subst("$INSTALL_ROOT$INSTALL_PYTHON_ASCEND")),f)
+
+	env.InstallShared(Dir(env.subst("$INSTALL_ROOT$INSTALL_PYTHON_ASCEND")),"config.py")
+
+	gladefiles = glob.glob("glade/*")
+	env.InstallShared(Dir(env.subst("$INSTALL_ROOT$INSTALL_ASCDATA/glade")),gladefiles)
+	
+# vim: set syntax=python:
+

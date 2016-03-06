@@ -1,0 +1,51 @@
+#!/usr/bin/python invoke_with_scons
+Import('env')
+import glob, os.path
+
+# this sconscript will build the ASCEND user's manual and install it in the desired location
+
+if env.get('WITH_DOC_BUILD'):
+
+	env.Command('book.tex','book.lyx'
+		,"lyx --export latex $SOURCE"
+	)
+
+	epsfigs = glob.glob("*.eps")
+	pdffigs = []
+	for f in epsfigs:
+		st,ext = os.path.splitext(f)
+		pdffigs += env.Command(st+".pdf",f
+			,"epstopdf --outfile=$TARGET $SOURCE"
+		)
+
+	## @TODO use 'env.PDF()' instead
+
+	pdf = env.Command('book.pdf','book.tex'
+		,"pdflatex book.tex"
+		,chdir=1
+	)
+	env.Depends(pdf,pdffigs)
+
+	if env.get('WITH_LATEX2HTML'):
+		html = env.Command('html/index.html','book.tex'
+			,"latex2html --show_section_numbers --html_version=4.0 -dir html $SOURCE.file"
+			,chdir="doc"
+		)
+		env.Depends(html,epsfigs)
+else:
+	pdf = "book.pdf"
+
+#------------------------
+# doxygen docs for libascend
+
+env.SConscript('libascend/SConscript',['env'])
+
+#------------------------
+# install docs
+
+if env.get('CAN_INSTALL') and env.get('WITH_DOC_INSTALL'):
+	env.InstallShared(Dir(env.subst("$INSTALL_ROOT$INSTALL_DOC")),pdf)
+
+
+# vim: syntax=python:
+

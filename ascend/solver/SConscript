@@ -1,0 +1,63 @@
+#!/usr/bin/python invoke_using_scons
+Import('libascend_env')
+
+csrcs = Split("""
+	slv_interface.c
+	slvDOF.c 
+	logblock.c
+	solver.c
+""")
+# slv9, slv3 and slv8 moved to external packages (dynamically loaded)
+
+objs = []
+
+import re
+def c_escape(str):
+        return re.sub("\\\\","/",str)
+
+
+solver_env = libascend_env.Clone()
+
+solver_env['SUBST_DICT'] = {
+	'@ASC_WITH_CONOPT@':str(int('CONOPT' in libascend_env['WITH_SOLVERS']))
+	,'@ASC_LINKED_CONOPT@':str(int(libascend_env['CONOPT_LINKED']))
+	,'@ASC_CONOPT_LIB@': '"%s"' % libascend_env.get('CONOPT_LIB')
+	,'@ASC_CONOPT_ENVVAR@': '"%s"' % libascend_env.get('CONOPT_ENVVAR')
+	,'@ASC_CONOPT_DLPATH@': '"%s"' % c_escape(libascend_env.subst("$CONOPT_DLPATH"))
+}
+
+solverconfig = solver_env.SubstInFile('conoptconfig.h.in')
+
+if 'CONOPT' in libascend_env['WITH_SOLVERS']:
+	conopt_env = solver_env.Clone()
+
+	if libascend_env.get('CONOPT_LINKED'):
+		# and then we must give the ldflags back to libascend for linking.
+		libascend_env.AppendUnique(
+			LIBPATH=[solver_env.get('CONOPT_LIBPATH')]
+			, LIBS=[solver_env.get('CONOPT_LIB')]
+		)
+
+	conoptdl = conopt_env.SharedObject('conopt_dl.c')
+	conopt_env.Depends(conoptdl,solverconfig)
+	
+	objs += conoptdl
+
+for c in csrcs:
+	objs += solver_env.SharedObject(c)
+
+#--------------------
+# INSTALL
+
+import glob
+
+if libascend_env.get('CAN_INSTALL'):
+	installdir = Dir(libascend_env.subst("$INSTALL_ROOT$INSTALL_INCLUDE/ascend/solver"))
+
+	headers = glob.glob("*.h")
+	libascend_env.InstallHeader(installdir,headers)
+
+Return('objs')
+
+# vim: set syntax=python:
+

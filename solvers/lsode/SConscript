@@ -1,0 +1,52 @@
+Import('env')
+
+if 'LSODE' in env.get('WITH_SOLVERS'):
+
+	solver_env = env.Clone()
+
+	srcs = ['lsode.f','asc_lsode.c']
+
+	linpack_srcs = ['d1mach.c','dgbfa.f','dgbsl.f','dgefa.f','dgesl.f']
+
+	for s in linpack_srcs:
+		srcs.append( "linpack/%s" % s )
+
+	if env.get('F2C_LIBPATH'):
+		solver_env.AppendUnique(LIBPATH=[env.get('F2C_LIBPATH')])
+
+	if solver_env.get('F2C_LIB'):
+		solver_env.AppendUnique(LIBS=[env.get('F2C_LIB')])
+	
+	import platform
+	if platform.system()=="Windows":
+		# needed for latest gfortran with Mingw GCC 4.x
+		solver_env.AppendUnique(LINKFLAGS = ['-static-libgfortran','-static-libgcc'])
+		
+	solver_env.AppendUnique(
+		LIBS=['ascend']
+		,LIBPATH=['#']
+		,SHLINKFLAGS=['-fPIC']
+	)
+
+	fflags = env['SHFORTRANFLAGS']
+	fflags.append('-w') 
+	# print "SHFORTRAN flags for lsode;"
+	# for k in fflags:
+	# 	print k
+
+	lib = solver_env.SharedLibrary('lsode',srcs + env['blasobjs']
+		,SHLIBSUFFIX = env['EXTLIB_SUFFIX']
+		,SHLIBPREFIX = env['EXTLIB_PREFIX']
+		,SHFORTRAN = env['FORTRAN']
+		,SHFORTRANFLAGS = fflags
+	)
+
+	env.Depends(lib,env['libascend'])
+
+	env['extfns'] += [lib]
+	
+	if env.get('CAN_INSTALL'):
+		dir = Dir(env.subst("$INSTALL_ROOT$INSTALL_SOLVERS"))
+		env.InstallShared(dir,lib)
+
+# vim: set syntax=python:

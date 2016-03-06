@@ -1,0 +1,124 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+CFLAGS = -Wall -g
+
+SCONS_OPTIONS = CC="ccache gcc" \
+	CXX="ccache g++" \
+	ABSOLUTE_PATHS=1 \
+	INSTALL_PREFIX=/usr \
+	WITH_DOC_BUILD=0 \
+	WITH_DOC_INSTALL=1 \
+	F2C_LIB=gfortran \
+	FORTRAN=gfortran \
+	WITH_SOLVERS=CMSLV,CONOPT,DOPRI5,IDA,LRSLV,LSODE,QRSLV,IPOPT \
+	DEBUG=1
+
+# 	F2C_LIBPATH=/usr/lib/gcc/i486-linux-gnu/4.2.1/ \
+
+SCONS= scons $(SCONS_OPTIONS)
+
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -O0
+else
+	CFLAGS += -O2
+endif
+
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+	INSTALL_PROGRAM += -s
+endif
+
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	SCONS_OPTIONS += -j$(NUMJOBS)
+endif
+
+# shared library versions, option 1
+major=0
+
+INSTALLROOT=$(CURDIR)/debian/tmp
+DATADIR=$(INSTALLROOT)/usr/share
+
+GTKSOURCEVIEW=gtksourceview-2.0
+GTKSOURCEVIEWLANGS=$(DATADIR)/$(GTKSOURCEVIEW)/language-specs
+GTKSOURCEVIEW3=gtksourceview-3.0
+GTKSOURCEVIEW3LANGS=$(DATADIR)/$(GTKSOURCEVIEW)/language-specs
+
+build: build-stamp
+build-stamp:
+	dh_testdir
+	cd $(CURDIR) && $(SCONS)
+	touch build-stamp
+
+clean:
+	dh_testdir
+	rm -f build-stamp
+	dh_clean 
+	$(SCONS) -c
+	rm -rf .scon*
+	rm scons/*.pyc
+
+install: build
+	dh_testdir
+#	dh_testroot
+	dh_clean -k 
+	dh_installdirs
+	mkdir -p $(INSTALLROOT)/usr
+	cd $(CURDIR) && $(SCONS) INSTALL_ROOT=$(INSTALLROOT) install
+#
+	cd $(CURDIR)/pygtk/gnome && \
+	install -m 644 -D ascend.desktop $(DATADIR)/applications/ascend.desktop && \
+	install -m 644 -D ascend.png $(DATADIR)/icons/ascend-app.png && \
+	install -m 644 -D ascend.png $(DATADIR)/icons/hicolor/64x64/ascend.png && \
+	install -m 644 -D ascend.xml $(DATADIR)/mime/packages/ascend.xml
+#
+# file-type icon for ascend models (double click should open in ASCEND)
+	cd $(CURDIR)/pygtk/glade && \
+	install -m 644 -D ascend-doc-48x48.svg $(DATADIR)/icons/hicolor/scalable/mimetypes/text-x-ascend-model.svg && \
+	install -m 644 -D ascend-doc-16x16.png $(DATADIR)/icons/hicolor/16x16/mimetypes/text-x-ascend-model.png && \
+	install -m 644 -D ascend-doc-22x22.png $(DATADIR)/icons/hicolor/22x22/mimetypes/text-x-ascend-model.png && \
+	install -m 644 -D ascend-doc-24x24.png $(DATADIR)/icons/hicolor/24x24/mimetypes/text-x-ascend-model.png && \
+	install -m 644 -D ascend-doc-32x32.png $(DATADIR)/icons/hicolor/32x32/mimetypes/text-x-ascend-model.png && \
+	install -m 644 -D ascend-doc-48x48.png $(DATADIR)/icons/hicolor/48x48/mimetypes/text-x-ascend-model.png && \
+	install -m 644 -D ascend-doc-64x64.png $(DATADIR)/icons/hicolor/64x64/mimetypes/text-x-ascend-model.png
+#
+# syntax highlighting for gedit
+	cd $(CURDIR)/tools/$(GTKSOURCEVIEW3) && \
+	install -m 644 -D ascend.lang $(GTKSOURCEVIEW3LANGS)/ascend.lang
+#
+# syntax highlighting for internal use (view model code)
+	cd $(CURDIR)/tools/$(GTKSOURCEVIEW) && \
+	install -m 644 -D ascend.lang $(GTKSOURCEVIEWLANGS)/ascend.lang
+
+	dh_install --fail-missing --sourcedir=$(INSTALLROOT)
+
+	dh_installman
+
+# Build architecture-independent files here.
+binary-indep:
+	dh_testdir
+	dh_testroot
+	-cd $(CUR_DIR) && $(SCONS) doc
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs CHANGELOG.txt
+	dh_installdocs
+	dh_installexamples
+	dh_installman
+	dh_link
+	dh_strip --dbg-package=ascend-dbg
+	dh_compress
+	dh_fixperms
+	dh_makeshlibs
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install configure
+

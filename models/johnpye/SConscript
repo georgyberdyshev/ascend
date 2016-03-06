@@ -1,0 +1,14 @@
+Import('env')
+
+subdirs = [
+	'extfn','datareader','brent', 'fprops', 'grena', 'nrel'
+	,'planck'
+]
+ 
+for d in subdirs:
+	env.SConscript(d+'/SConscript',['env']);
+
+if env.get('WITH_PYTHON'):
+	env.SConscript('extpy/SConscript',['env']);
+
+# vim: set syntax=python:

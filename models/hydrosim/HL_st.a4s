@@ -1,0 +1,11 @@
+DELETE TYPES;
+DELETE SYSTEM;
+DELETE z;
+READ FILE "hydrosim/HL_st.a4c";
+COMPILE z OF L_z;
+BROWSE {z};
+RUN {z.specify};
+RUN {z.values};
+SOLVE {z} WITH QRSlv;
+
+

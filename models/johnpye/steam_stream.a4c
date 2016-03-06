@@ -1,0 +1,42 @@
+REQUIRE "johnpye/iapws95.a4c";
+
+(** A simple mass-based stream model *)
+MODEL steam_stream;
+	S IS_A iapws95_1phase;
+	mdot IS_A mass_rate;
+
+	rho ALIASES S.rho;
+	T ALIASES S.T;
+	p ALIASES S.p;
+	u ALIASES S.u;
+	h ALIASES S.h;
+	s ALIASES S.s;
+	cp ALIASES S.cp;
+	cv ALIASES S.cv;
+	w ALIASES S.w;	
+
+METHODS
+METHOD default_self;
+	RUN ClearAll;
+	RUN specify;
+	RUN values;
+END default_self;
+
+METHOD specify;
+	FIX mdot;
+	RUN S.specify;
+END specify;
+
+METHOD values;
+	mdot := 1 {kg/s};
+	RUN S.values;
+END values;
+
+METHOD test_ph;
+	RUN ClearAll;
+	FIX mdot; mdot := 0 {kg/s};
+	FIX p; p := 10 {bar};
+	FIX h; h := 419.7 {kJ/kg};
+END test_ph;
+
+END steam_stream;

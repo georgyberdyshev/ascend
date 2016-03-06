@@ -1,0 +1,86 @@
+#!/usr/bin/python scons
+Import('env')
+
+# Build directories that contain external libraries
+env.SConscript(['johnpye/SConscript'],['env'])
+env.SConscript(['test/SConscript'],['env'])
+env.SConscript(['sensitivity/SConscript'],['env'])
+
+# Hunt for all models in the directory structure
+import os, os.path, re
+
+modelfiles = []
+
+excludedirs = ['.svn','CVS']
+excludefiles = ['Makefile.in','SConscript','SConstruct','update-Makefile.pl']
+excludepatterns = [re.compile(s) for s in [
+	r"^.*\.os$"
+	, r"^.*\.o$"
+	,r"^.*\.tm2$"
+	,r"^.*/fprops/[a-z]+$"
+	,r"^.*/fprops/.*\.c$"
+	,r"^.*/fprops/.*\.h$"
+	,r"^.*/fprops/test\.py$"
+	,r"^.*/fprops/.*\.mac$"
+	,r"^.*/fprops/precalc\.py$"
+	,r"^.*/fprops/.*\.ods$"
+	,r"^.*/fprops/python/.*$"
+]]
+
+modeldir = env.Dir(".").abspath
+#print "MODEL DIR =",modeldir
+
+cwd = os.getcwd()
+os.chdir(modeldir)
+for root,dirs,files in os.walk("."):
+	for d in dirs:
+		if d in excludedirs:
+			dirs.remove(d)
+	if "PACKAGE" in files:
+		print "FOUND 'PACKAGE' file in %s..." % root
+		p = file(os.path.join(root,"PACKAGE"))
+		f1 = []
+		for l in p:
+			l1 = l.strip()
+			if not len(l1) or l1[0]=="#":
+				continue
+			f1.append(l1)
+		files = f1
+
+	for f in files:
+		if f in excludefiles:
+			continue
+
+		np = os.path.normpath(os.path.join(root,f))
+
+		fail = False
+		for r in excludepatterns:
+			if r.match(np):
+				fail = True
+				break
+		if fail:
+			continue
+
+		#print "ADDING",os.path.normpath(os.path.join(root,f))
+		modelfiles.append(np)
+os.chdir(cwd)
+
+#print "CWD =",cwd
+
+modelsroot = '$INSTALL_ROOT$INSTALL_MODELS'
+
+installeddirs = []
+
+for f in modelfiles:
+	head,tail = os.path.split(f)
+	targetdir = Dir(env.subst(modelsroot)+"/"+head)
+	
+	if not targetdir in installeddirs:
+		installeddirs.append(targetdir)
+	env.InstallShared(targetdir,f)
+
+#print "MODEL INSTALLED DIRS =",installeddirs
+Return('installeddirs')
+
+# vim: set syntax=python:
+

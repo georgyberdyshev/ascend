@@ -1,0 +1,56 @@
+/*
+ *  watchptio.h: An API to ascend methods
+ *  by Benjamin Allan                          
+ *  March 17, 1998
+ *  Part of ASCEND
+ *  Version: $Revision: 1.2 $
+ *  Version control file: $RCSfile: watchptio.h,v $
+ *  Date last modified: $Date: 1998/06/16 16:38:53 $
+ *  Last modified by: $Author: mthomas $
+ *
+ *  This file is part of the Ascend Language Interpreter.
+ *
+ *  Copyright (C) 1998 Carnegie Mellon University
+ *
+ *  The Ascend Language Interpreter is free software; you can
+ *  redistribute it and/or modify it under the terms of the GNU
+ *  General Public License as published by the Free Software
+ *  Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *  The Ascend Language Interpreter is distributed in hope that it
+ *  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ *  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/** @file
+ *  An API to
+ *  ascend methods via an interactive or external interface
+ *  without knowing about ascend compiler internals.
+ *  <pre>
+ *  When #including watchptio.h, make sure these files are #included first:
+ *         #include "utilities/ascConfig.h"
+ *         #include "proc.h"
+ *  </pre>
+ */
+
+#ifndef ASC_WATCHPTIO_H
+#define ASC_WATCHPTIO_H
+
+/**	@addtogroup compiler_proc Compiler Methods
+	@{
+*/
+
+/**
+ *  Write the procedure to the file.
+ */
+ASC_DLLSPEC void WriteProcedure(FILE *f, struct InitProcedure *p);
+
+/* @} */
+
+#endif  /* ASC_WATCHPTIO_H */
+

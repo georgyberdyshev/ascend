@@ -1,0 +1,8 @@
+#!/bin/sh
+export ASCENDDIST=@SOURCE_ROOT@
+export ASCENDTK=@SOURCE_ROOT@/tcltk/tk
+export LD_LIBRARY_PATH=$ASCENDDIST:$ASCENDDIST/tcltk/interface
+SOLVERS=$ASCENDDIST/solvers
+export ASCENDLIBRARY=@SOURCE_ROOT@/models
+export ASCENDSOLVERS=$SOLVERS/qrslv:$SOLVERS/lrslv:$SOLVERS/conopt:$SOLVERS/cmslv:$SOLVERS/ida:$SOLVERS/lsode:$SOLVERS/ipopt
+@SOURCE_ROOT@/tcltk/interface/ascend4 $*

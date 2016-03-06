@@ -1,0 +1,10 @@
+DELETE TYPES;
+DELETE z;
+READ FILE "hydrosim/HL_block.a4c";
+COMPILE z OF heap_block;
+BROWSE {z};
+RUN {z.seqmod};
+RUN {z.specify};
+SOLVE {z} WITH QRSlv;
+
+

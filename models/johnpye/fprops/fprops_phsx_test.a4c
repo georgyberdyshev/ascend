@@ -1,0 +1,58 @@
+(* test of the fluid properties routines currently implemented in helmholtz.c *)
+
+REQUIRE "atoms.a4l";
+REQUIRE "johnpye/thermo_types.a4c";
+IMPORT "johnpye/fprops/helmholtz";
+
+MODEL helmholtz_conf(
+	component IS_A symbol_constant;
+);
+END helmholtz_conf;
+
+
+MODEL fprops_phsx_test;
+
+	T IS_A temperature;
+	p IS_A pressure;
+	h IS_A specific_energy;
+	s IS_A specific_entropy;
+	x IS_A fraction;
+	v IS_A specific_volume;
+	rho IS_A mass_density;
+
+	rho * v = 1.;
+
+	conf IS_A helmholtz_conf('carbondioxide');
+
+	sat: helmholtz_phsx_vT(
+		v, T : INPUT;
+		p, h, s, x : OUTPUT;
+		conf : DATA
+	);
+
+METHODS
+METHOD problem_case;
+	(* currently the FPROPS routines don't seem to be able to converge to
+	a solution in the following case. *)
+	RUN ClearAll;
+	FIX p; p := 7.0 {bar};
+	FIX h; h := 174.777 {kJ/kg};
+	rho := 900 {kg/m^3};
+	v := 1/rho;
+	SOLVER QRSlv;
+	OPTION iterationlimit 500;
+END problem_case;
+METHOD on_load;
+	(* a first guess *)
+	v := 100 {m^3/kg};
+	T := 300 {K};
+
+	FIX p;
+	p := 1 {bar};
+	FIX h;
+	h := 400 {kJ/kg};
+END on_load;
+
+END fprops_phsx_test;	
+
+

@@ -1,0 +1,242 @@
+REQUIRE "ivpsystem.a4l";
+REQUIRE "atoms.a4l";
+REQUIRE "johnpye/thermo_types.a4c";
+IMPORT "freesteam";
+IMPORT "dsg";
+
+(*
+	This model requires the 'freesteam' library be installed on your system.
+	You must compile it with the 'ASCEND_CONFIG=`which ascend-config`' flag
+	to ensure that the required external library is installed where ASCEND
+	can find it. Alternatively, you can specify the location by adding to the
+	ASCENDLIBRARY path variable. See http://freesteam.sf.net/
+
+	This model also requires the 'dsg' library for Direct Steam Generation
+	calculations, available on request from http://jpye.dyndns.org/
+
+	For example (assuming you already have the source code for the above):
+	export $ASCENDLIBRARY=$HOME/src/ascend/models
+	cd $HOME/src/freesteam
+	scons -j2 ascend
+	export ASCENDLIBRARY=$HOME/src/freesteam/ascend:$ASCENDLIBRARY
+	cd $HOME/src/dsg-transient
+	scons -j2 ascend
+	export ASCENDLIBRARY=$HOME/src/dsg-transient/ascend:$ASCENDLIBRARY
+	export PATH=$PATH:$HOME/src/ascend/pygtk
+	ascdev johnpye/dsg.a4c	
+*)
+
+MODEL dsg;
+	(* temporal derivatives *)
+	drho_dt IS_A density_rate;
+	dmdot_dt IS_A mass_rate_rate;
+	drhou_dt IS_A power_per_volume;
+	dTw_dt IS_A temperature_rate;
+
+	(* spatial derivatives *)
+	dmdot_dz IS_A mass_rate_per_length;
+	dmdoth_dz IS_A solver_var;
+	dekdot_dz IS_A solver_var;
+	dp_dz IS_A pressure_per_length;
+	drhovel2_dz IS_A pressure_per_length;
+
+	(* wall properties *)
+	rhow IS_A mass_density;
+	D2 IS_A distance;
+	cw IS_A specific_heat_capacity;
+	Aw IS_A area;
+	hw IS_A heat_transfer_coefficient;
+
+	Aw = 1{PI}*(D2^2 - D^2)/4;
+
+	(* conservation equations *)
+	massbal: drho_dt = -1/A * dmdot_dz;
+	mombal:  1/A * dmdot_dt = -dp_dz - f/D/2*rho*vel^2 - drhovel2_dz;
+	enerbal: drhou_dt = 1/A * ( qdott - dmdoth_dz + mdot * dekdot_dz );
+	pipebal: dTw_dt = 1/rhow/Aw/cw * (qdots - qdotl - qdott);
+
+	rho IS_A mass_density;
+	mdot IS_A mass_rate;
+	p IS_A pressure;
+	f IS_A positive_factor; (* pipe friction factor *)
+	f_LO IS_A positive_factor; (* liquid-only friction factor *)
+	u IS_A specific_energy;
+	h IS_A specific_enthalpy;
+	vel IS_A speed;
+	qdott, qdotl,qdots IS_A power_per_length;
+	mu IS_A viscosity;
+	v IS_A specific_volume;
+	T, Tw, Tamb IS_A temperature;
+	ekdot IS_A specific_power;
+
+	rhou IS_A energy_per_volume;
+	rhou = rho * u;
+
+	rho * v = 1;
+	ekdot = 0.5 * rho * vel^2;
+
+	thermo_props: iapws97_uvTxmu_ph(
+		p,h : INPUT;
+		u,v,T,x,mu : OUTPUT
+	);
+
+	vel = rho*mdot/A;
+
+	Re IS_A positive_factor;
+	Re_rel: Re = rho*vel*D/mu;
+	eps_on_D IS_A factor;
+	eps_on_D_rel: eps_on_D = eps/D;
+
+	D IS_A distance;
+	eps IS_A distance;
+	A IS_A area;
+	A = 1{PI}* D^2 / 4;
+
+	friction: dsg_friction_factor(
+		Re, eps_on_D : INPUT;
+		f_LO : OUTPUT
+	);
+
+	phi2 IS_A positive_factor;
+	x IS_A fraction;
+	twophmult: dsg_phi2_martinelli_nelson(
+		p,x : INPUT;
+		phi2 : OUTPUT
+	);
+	(* TODO: compute LIQUID ONLY reynolds number when in the two-phase region...
+	that's a bit tricky and needs conditional modelling, so maybe try putting 
+	it in the external code. *)
+
+	f = f_LO*rho2;
+
+	cavity_losses: dsg_ext_heat_loss(
+		Tw,Tamb,D2,hw : INPUT;
+		qdotl : OUTPUT
+	);
+
+	mdoth IS_A energy_rate;
+	mdoth = mdot * h;
+
+	rhovel2 IS_A solver_var;
+	rhovel2 = rho * vel^2;
+
+	(* internal heat transfer *)
+
+	h1 IS_A heat_transfer_coefficient;
+
+	qdott = h1 * 1{PI} * D * (Tw - T);
+
+	twophconv: dsg_conv_coeff_two_phase(
+		p, h, mdot, D, f : INPUT;
+		h1 : OUTPUT
+	);
+
+	t IS_A time;
+
+METHODS
+
+METHOD specify;
+	RUN fix_design;
+	RUN fix_states;
+	RUN fix_spatials;
+	RUN ode_init;
+END specify;
+
+METHOD fix_states;
+	FIX Tw, p, h, mdot;
+END fix_states;
+
+METHOD fix_design;
+	(* design parameters, geometry, materials of construction *)
+	FIX rhow,D2,cw,hw;
+	FIX D, eps;
+	FIX qdots;
+	FIX Tamb;
+END fix_design;
+
+METHOD fix_spatials;
+	(* for use when tinkering about with a single node only *)
+	FIX dmdot_dz, dmdoth_dz, dekdot_dz, dp_dz, drhovel2_dz;
+END fix_spatials;
+
+METHOD fix_temporals;
+	(* for steady-state solution *)
+	FIX drho_dt;
+	FIX dmdot_dt;
+	FIX drhou_dt;
+	FIX dTw_dt;
+END fix_temporals;
+
+METHOD values;
+	(* design parameters *)
+	D := 60 {mm};
+	D2 := 70 {mm};
+	eps := 0.05 {mm};
+	rhow := 7.8 {g/cm^3};
+	cw := 0.47 {J/g/K};
+	hw := 10 {W/m^2/K};
+	Tamb := 300 {K};
+
+	(* states *)
+	Tw := 600 {K};
+	p := 10 {bar};
+	h := 4000 {kJ/kg};
+	mdot := 0.001 {kg/s};
+
+	(* spatial derivs *)
+	dp_dz := -200 {Pa/m};
+	dmdot_dz := 0 {kg/s/m};
+	drhovel2_dz := (0 {kg/m^3}) * (0 {m/s})^2 / (1 {m});
+	dekdot_dz := 0 {W/m};
+	dmdoth_dz := dmdot_dz * 0 {kJ/kg};
+
+	(* derivative variables *)
+	drho_dt := 0 {kg/m^3/s};
+	dmdot_dt := 0 {kg/s/s};
+	drhou_dt := 0 {kg/m^3*kJ/kg/s};
+	dTw_dt := 0 {K/s};
+
+	drhou_dt.nominal := rhou.nominal / 60 {s};
+
+	v := 0.2 {m^3/kg};
+
+	(* bounds *)
+	f.lower_bound := 0.008;
+	v.lower_bound := 0.00999 {m^3/kg};
+	v.upper_bound := 1/(0.0202 {kg/m^3});
+	u.lower_bound := 0 {kJ/kg};
+	u.upper_bound := 3663 {kJ/kg};
+
+	(* starting guesses *)
+	Re := 10000;
+END values;
+
+METHOD ode_init;
+	t.ode_type := -1;
+	t := 0 {s};
+
+	rho.ode_id := 1;   drho_dt.ode_id := 1;
+	rho.ode_type := 1; drho_dt.ode_type := 2;
+
+	mdot.ode_id := 2;   dmdot_dt.ode_id := 2;
+	mdot.ode_type := 1; dmdot_dt.ode_type := 2;
+	
+	rhou.ode_id := 3;   drhou_dt.ode_id := 3;
+	rhou.ode_type := 1; drhou_dt.ode_type := 2;
+
+	Tw.ode_id := 4;   dTw_dt.ode_id := 4;
+	Tw.ode_type := 1; dTw_dt.ode_type := 2;
+
+	rho.obs_id := 1;
+	mdot.obs_id := 2;
+	rhou.obs_id := 3;
+	Tw.obs_id := 4;
+
+END ode_init;
+
+METHOD on_load;
+	RUN reset;
+	RUN values;
+END on_load;
+
+END dsg;

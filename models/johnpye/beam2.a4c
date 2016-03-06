@@ -1,0 +1,49 @@
+REQUIRE "johnpye/beam.a4c";
+
+(*
+	Simple superposition of two loads
+*)
+
+MODEL beam2;
+
+	n IS_A integer_constant;
+	n:== 2;
+	
+	E IS_A youngs_modulus;
+	I IS_A second_moment_of_area;
+	L IS_A distance;
+	
+	S IS_A beam_superposition(n,E,I,L);
+	
+	P1 ALIASES S.B[1].P;
+	a1 ALIASES S.x[1];
+	P2 ALIASES S.B[2].P;
+	a2 ALIASES S.x[2];
+
+	v1 ALIASES S.v[1];	
+	v2 ALIASES S.v[2];
+METHODS
+METHOD specify;
+	FIX E,I,L;
+	FIX P1,a1;
+	FIX P2,a2;
+END specify;
+
+METHOD bound_self;
+	RUN S.bound_self;
+	L.upper_bound := 500 {m};
+END bound_self;
+
+METHOD values;
+	E := 200 {GPa};
+	I := 0.5e6{mm^4};
+	L := 3 {m};
+	P1 := 10 {kN}; a1 := 1 {m};
+	P2 := 10 {kN}; a2 := 2 {m};
+END values;
+
+METHOD on_load;
+	RUN reset; RUN bound_self; RUN values;
+END on_load;
+
+END beam2;

@@ -1,0 +1,256 @@
+/*
+	This file will be processed by SCons and output as config.h.
+	Don't edit this file unless it's named 'config.h.in' unless
+	it doesn't bother you that your changes will be IGNORED!
+
+	DUAL SUPPORT FOR BOTH AUTOTOOLS AND SCONS
+
+	When I add a new flag to SCons, I will use the form (replace \ by /):
+
+		\* #define FLAGNAME @FLAGNAME@ *\
+
+	Using SCons, I can uncomment these lines using text-substitution.
+	If you want to add support for these flags in your autotools build
+	you just need to uncomment these lines; no changes to the SCons build
+	will be necessary (as it will also hunt for @FLAGNAME@ in its
+	text-subst.
+
+	@NOTE
+	This file should NEVER contain any #include statements! It is important
+	that the configuration can be determined without any other headers being
+	loaded and muddying the waters.
+	@ENDNOTE
+*/
+#ifndef ASC_UTIL_CONFIG_H
+#define ASC_UTIL_CONFIG_H
+
+#include <ascend/general/config.h>
+
+/**
+	Turn off the use of signals completely if you want. Signals are used to
+	interrupt solvers, catch floating point errors (but check that you have the
+	C99 FPE behaviour working correctly if this applied) and also to catch
+	segmentation faults (no sure how well that's implemented.
+
+	Concerns over strange behaviour in mixed-language environments such as
+	Python and/or Tcl make avoiding use of traps often quite a good idea.
+*/
+#ifndef ASC_SIGNAL_TRAPS
+/* #define ASC_SIGNAL_TRAPS @ASC_SIGNAL_TRAPS@ */
+#endif
+
+/**
+	If signal handlers (<signal.h>) on this platform need to be reset after
+	each 'catch', the ASC_RESETNEEDED macro should be set true.
+*/
+#ifndef ASC_RESETNEEDED
+/* #define ASC_RESETNEEDED @ASC_RESETNEEDED@ */
+#endif
+
+/**
+	Prefix for 'external libraries' loaded using the 'extlib' importhandler
+*/
+#define ASC_EXTLIBPREFIX "@EXTLIB_PREFIX@"
+
+/**
+	Suffix for shared libraries
+*/
+#define ASC_EXTLIBSUFFIX "@EXTLIB_SUFFIX@"
+
+/**
+	Prefix and suffix for standard system libraries on this platform
+*/
+#define ASC_SHLIBPREFIX "@SHLIBPREFIX@"
+#define ASC_SHLIBSUFFIX "@SHLIBSUFFIX@"
+
+/*
+	FIXME changes are being made to streamline the following...
+
+	This variable determines how ASCEND goes about finding all its stuff at runtime,
+	assuming the ASCENDDIST environment variable is *not* present.
+
+	ASCENDDIST is where Python, Tcl/Tk and model scripts, as well as graphics etc are
+	kept in the filesystem. Normally it is expected that ASCEND should be able to
+	know or work out this location itself.
+
+	If ASC_ABSOLUTE_PATHS is defined, ASCEND will used a fixed absolute path to locate
+	its data files. This is the standard Red Hat and Debian system, in which
+	binaries are typically located in /usr/bin but related non-exe files are located
+	in /usr/share/appname/. See ASC_DATADIR in this case.
+
+	If not defined, ASCEND will locate its data files using a relative path based on
+	the location of the running executable. See ASC_DISTDIR_REL_BIN. This is the
+	'application folder' style made popular on early Macs, and also favoured by CMU.
+
+	For a discussion of this, see
+	http://linux.slashdot.org/article.pl?sid=04/04/03/174249
+
+	At present, the only place this has any effect is in the Tcl/Tk
+	interface, in Driver.c's choices for default values of non-specified
+	environment variables. @TODO migrate this to Python as well.
+
+	SCons will uncomment the #define line if required.
+	Doing it this (hacky) way so as not to mess up autoconf.
+
+	Note: do not use ASC_ABSOLUTE_PATHS on Windows. Absolute paths mess up the
+	ability of the installer to relocate files at install-time.
+
+	For Tcl/Tk the following #defines can be needed:
+		ASCENDDIST_DEFAULT
+		ASCENDTK_DEFAULT
+		ASCENDLIBRARY_DEFAULT
+		ASCENDSOLVERS_DEFAULT
+
+		ASC_ABSOLUTE_PATHS
+		ASC_DIST_REL_BIN
+		ASC_TK_REL_DIST
+		ASC_LIBRARY_REL_DIST
+		ASC_SOLVERS_REL_DIST
+
+	Then, using these, in the case of relative paths, we choose:
+
+		ASCENDROOT = $PROGDIR/@ASC_DIST_REL_BIN@
+		ASCENDTK = $ASCENDROOT/@ASC_TK_REL_DIST@
+		ASCENDLIBRARY = $ASCENDROOT/@ASC_LIBRARY_REL_DIST@
+		ASCENDSOLVERS = $ASCENDROOT/@ASC_SOLVERS_ROL_DIST@
+*/
+#define ASC_ABSOLUTE_PATHS @ASC_ABSOLUTE_PATHS@
+#if ASC_ABSOLUTE_PATHS
+# define ASCENDDIST_DEFAULT "@ASCENDDIST_DEFAULT@"
+# define ASCENDTK_DEFAULT "@ASCENDTK_DEFAULT@"
+# define ASCENDLIBRARY_DEFAULT "@ASCENDLIBRARY_DEFAULT@"
+# define ASCENDSOLVERS_DEFAULT "@ASCENDSOLVERS_DEFAULT@"
+#else
+# define ASC_DIST_REL_BIN "@ASC_DIST_REL_BIN@"
+# define ASC_TK_REL_DIST "@ASC_TK_REL_DIST@"
+# define ASC_LIBRARY_REL_DIST "@ASC_LIBRARY_REL_DIST@"
+# define ASC_SOLVERS_REL_DIST "@ASC_SOLVERS_REL_DIST@"
+#endif
+
+/*-----------------------------------------------------------------------
+  IDA
+*/
+
+/*
+	Whether to compile with support for the IDA DAE solver.
+
+	Note that this option is automatically configured based on the value of
+	WITH_SOLVERS in the SCons options.
+
+	SCons will uncomment the #define line if required.
+	Doing it this (hacky) way so as not to mess up autoconf.
+*/
+#ifndef ASC_WITH_IDA
+/* #define ASC_WITH_IDA @ASC_WITH_IDA@ */
+#endif
+
+/*-----------------------------------------------------------------------
+  TRON
+*/
+
+/*
+	This is the name of the TRON .so or DLL. On Windows
+	it's called 'copopt3' but on linux it seems to be called
+	'consub3.so'.
+*/
+#define ASC_TRON_LIB "@ASC_TRON_LIB@"
+
+/*
+	This is the name of the optional environment variable which will
+	be used for the value of the searchpath for the TRON DLL/SO.
+*/
+#define ASC_TRON_ENVVAR "@ASC_TRON_ENVVAR@"
+
+/*
+	This is the default *fallback* searchpath that will be used when hunting
+	for TRON at runtime
+
+	Searchpath for TRON DLL/SO. This is in platform-specific
+	form (paths with ';' separator in Windows, ':' separator on Linux).
+*/
+#define ASC_TRON_DLPATH "@ASC_TRON_DLPATH@"
+
+/*-------------------------------------------------------------------------
+  LSODE
+*/
+
+/*
+	Whether to compile with support for the LSODE integration engine.
+	Note that you will usually need to manually specify the location of your
+	'libg2c.a' in the link step, see F2C_* Scons options.
+
+	Note that this option is automatically configured based on the value of
+	WITH_SOLVERS in the SCons options.
+
+	SCons will uncomment the #define line if required.
+	Doing it this (hacky) way so as not to mess up autoconf.
+*/
+#ifndef ASC_WITH_LSODE
+/* #define ASC_WITH_LSODE @ASC_WITH_LSODE@ */
+#endif
+
+/*--------------------------------------------------------------------------
+  MATRIX MARKET EXPORT
+*/
+
+/*
+	Whether to provide export functions using the Matrix Market format
+	(from Integrator, perhaps elsewhere)
+*/
+#ifndef ASC_WITH_MMIO
+/* #define ASC_WITH_MMIO @ASC_WITH_MMIO@ */
+#endif
+
+/*--------------------------------------------------------------------------
+  UFSPARSE sparse matrix library
+*/
+
+/*
+	Whether to provide additional matrix functionality from the UFSPARSE
+	library (CXSparse in particular)
+*/
+#ifndef ASC_WITH_UFSPARSE
+/* #define ASC_WITH_UFSPARSE @ASC_WITH_UFSPARSE@ */
+#endif
+
+/*--------------------------------------------------------------------------
+  ENV VAR
+*/
+
+/*
+	The following are the environment variables ASCEND requires.
+	If the user does not have the ASC_ENV_DIST set in his or her
+	environment, a default value is set based on the directory where the
+	ascend binary lives.  The other environment variables will be set
+	to default values keyed off of ASC_ENV_DIST.  See the function
+	CheckEnvironmentVars later in this file for the details.
+ */
+#define ASC_ENV_DIST    "ASCENDDIST"
+#define ASC_ENV_TK      "ASCENDTK"
+#define ASC_ENV_BITMAPS "ASCENDBITMAPS"
+#define ASC_ENV_LIBRARY "ASCENDLIBRARY"
+
+/**
+	The name of the environment variable containing a list' of paths
+	to search when trying to open a module.  The list is in the style
+	of the native OS: colon-separated on UNIX and semicolon separated
+	under Windows.
+*/
+#define ASC_ENV_SOLVERS "ASCENDSOLVERS"
+
+/*
+	default values of the ASCENDLIBRARY and ASCENDSOLVERS variables
+	that are used if the vars aren't present in the environment.
+*/
+#define ASC_DEFAULT_ASCENDLIBRARY "@DEFAULT_ASCENDLIBRARY@"
+#define ASC_DEFAULT_ASCENDSOLVERS "@DEFAULT_ASCENDSOLVERS@"
+
+/*------------------------------------------------------------------------------
+  LEX
+*/
+
+#ifndef ASC_HAVE_LEXDESTROY
+/* #define ASC_HAVE_LEXDESTROY @ASC_HAVE_LEXDESTROY@ */
+#endif
+
+#endif

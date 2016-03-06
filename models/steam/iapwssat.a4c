@@ -1,0 +1,88 @@
+REQUIRE "steam/iapwssatprops.a4c";
+
+MODEL iapwssat REFINES iapwssatprops;
+	x IS_A fraction; (* ensures we stay in the required region *)
+	h IS_A specific_enthalpy;
+	u IS_A specific_energy;
+	rho IS_A mass_density;
+
+	h_expr: h = (h_g - h_f) * x + h_f;
+	u_expr: u = (u_g - u_f) * x + u_f;
+	rho_expr: ( rho_f * rho_g )/ (rho_g + (rho_f - rho_g)*x ) = rho ;
+METHODS
+METHOD default_self;
+	x := 0.5;
+	x.nominal := 0.5;
+	h := 2800 {kJ/kg};
+	h.nominal := 500 {kJ/kg};
+	u := 2300 {kJ/kg};
+	u.nominal := 400 {kJ/kg};
+	rho := 1000 {kg/m^3};
+	rho.nominal := 1. / (0.07 {m^3/kg});
+	RUN iapwssatprops::default_self;
+END default_self;
+METHOD bound_self;
+	T.lower_bound := 273 {K};
+END bound_self;
+METHOD specify;
+	FIX x;
+	RUN iapwssatprops::specify;
+END specify;
+METHOD values;
+	x := 0.5;
+	RUN iapwssatprops::values;
+END values;
+METHOD on_load;
+	RUN default_self;
+	RUN reset; RUN values;
+	RUN bound_self;
+END on_load;
+END iapwssat;
+
+(*
+	not sure what to do with this test case. We are trying to show that
+	illegal values of quality 'x' will fix themselves up somehow.
+*)
+MODEL testiapwssat1 REFINES iapwssat;
+METHODS
+METHOD values;
+	RUN iapwssatprops::values;
+	x := 1.01;
+	x.upper_bound := 1.0;
+	x.lower_bound := 0.0;
+END values;
+METHOD self_test;
+	ASSERT x <= x.upper_bound;
+	ASSERT x >= x.lower_bound;
+END self_test;
+END testiapwssat1;
+
+(*
+	test our ability to converge steam properties using the above when
+	(u,v) are fixed.
+*)
+MODEL testiapwssatuv REFINES iapwssat;
+METHODS
+METHOD specify;
+	FIX u,rho;
+END specify;
+METHOD values;
+	rho := 500 {kg/m^3};
+	u := 780 {kJ/kg};
+END values;
+METHOD self_test;
+	ASSERT abs(p - 10.540441 {bar}) < 0.000002 {bar};
+	ASSERT abs(T - (273.15{K} + 182.177917{K})) < 0.000001 {K};
+	ASSERT abs(x - 0.004734) < 0.000001;
+END self_test;
+METHOD values2;
+	rho := 450 {kg/m^3};
+	u := 780 {kJ/kg};
+END values2;
+METHOD self_test2;
+	ASSERT abs(p - 10.426431 {bar}) < 0.000002 {bar};
+	ASSERT abs(T - (273.15{K} + 181.700586{K})) < 0.000001 {K};
+	ASSERT abs(x - 0.005885) < 0.000001;
+END self_test2;
+
+END testiapwssatuv;

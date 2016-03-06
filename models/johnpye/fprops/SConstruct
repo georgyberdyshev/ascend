@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+# Standalone 'SConstruct' to demonstrate how you can build
+# this ASCEND external library against an existing copy of
+# ASCEND installed on your system.
+
+import os, platform, sys
+
+deft = "default"
+if platform.system()=="Windows":
+	deft = "mingw"
+
+vars = Variables()
+
+vars.Add(
+	'CC'
+	,'C Compiler command'
+	,"${HOST_PREFIX}gcc"
+)
+
+vars.Add(
+	'CFLAGS'
+	,'C compiler flags'
+	,["-Wall"]
+)
+
+env = Environment(
+	toolpath=['scons']
+	,tools = [deft ,'substinfile','swig']
+	,ENV={"TERM":os.environ.get('TERM'), "PATH":os.environ.get('PATH')}
+	,HOST_PREFIX=os.environ.get('HOST_PREFIX')
+)
+
+Help(vars.GenerateHelpText(env))
+vars.Update(env)
+
+if WhereIs('ascend-config'):
+	env.ParseConfig(['ascend-config','--libs','--cppflags'])
+	env['WITH_ASCEND'] = 1
+else:
+	print "WARNING: no ascend-config in path, won't build ASCEND wrapper"
+	env['WITH_ASCEND'] = 0
+
+env.Append(
+	CFLAGS=['-g','-Wall']
+)
+
+env['EXTLIB_SUFFIX'] = "_ascend" + env.subst("$SHLIBSUFFIX")
+env['EXTLIB_PREFIX'] = env.subst("$SHLIBPREFIX")
+env['extfns'] = []
+env['WITH_PYTHON'] = 1
+
+env.SConscript("SConscript",["env"])
+

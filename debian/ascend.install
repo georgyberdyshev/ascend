@@ -1,0 +1,6 @@
+usr/bin/ascend
+usr/lib/ascend/models
+usr/lib/ascend/solvers
+usr/lib/*.so.*
+usr/lib/python2.*/*
+usr/share

@@ -1,0 +1,414 @@
+(*
+	ASCEND model library: tube-bank view factor model
+	Copyright (C) John Pye 2007-2008
+	http://jpye.dyndns.org/
+
+	This program is free software; you can redistribute it
+	and/or modify it under the terms of the GNU General Public
+	License as published by the Free Software Foundation; either
+	version 2 of the License, or (at your option) any later
+	version.
+
+	This program is distributed in the hope that it will be
+	useful, but WITHOUT ANY WARRANTY; without even the implied
+	warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+	PURPOSE.  See the GNU General Public License for more
+	details.
+
+	You should have received a copy of the GNU General Public
+	License along with this program; if not, write to the Free
+	Software Foundation, Inc., 59 Temple Place, Suite 330,
+	Boston, MA 02111-1307  USA
+	-------------------------------------------------------------------
+
+	View factor calculation from a bank of tubes
+	to an opposing flat surface. This case is of
+	interest in solar collector design.
+
+                      F
+	    ___	         _._          ___
+	 .˙˙   ˙˙.    .˙˙ : ˙˙.G   .˙˙   ˙˙.
+	:     E   :  :    :   C:. :     D   :
+	|    ´    |  |  C ^   E| .|    ´    |·········
+	'.       .' B'.   :   .'; '.H      .'      ^
+	  '-----'     .'--:--'. .   '-----'        :
+	               .  :  .  `    I˙ .          : h
+	                . : .   ˙        ˙ .       :
+	                 .:.     .           ˙ .   :
+	------------------+------+----------+----+-+->
+                       O      A        X      J   x
+                             (x1)            (x2)
+
+	(ASCII art above uses UTF-8 encoding)
+
+	The view factor from the entire surface of cylinder
+	'C' to the plane slice from A to J is calculated and
+	returned as 'F' by this model.
+
+	The distance OC is given by the variable 'h'.
+	The distance OA is given by the variable 'x1'.
+	The distance OJ is given by the variable 'x2'.
+	The radius of the cylinders is given by 'r'.
+	The spacing of the cylinders (centre-to-centre) is 2*s.
+
+	At the point X there is a region boundary. To the
+	right of X, some beams from the cylinder C are 
+	occluded by the cylinder D. For this reason, the model
+	currently requires the conditional solver CMSlv.
+
+	The calculation method uses Hottel's crossed string rule
+	to determine the view factor.
+*)
+
+REQUIRE "atoms.a4l";
+
+(*
+	Calculates the angle (relative to the top of the
+	circle) at which a tangent strikes a circle, given the position
+	of the point (x,-h) and the radius of the circle (r).
+*)
+MODEL wrapping_angle(
+	x WILL_BE delta_distance;
+	h WILL_BE distance;
+	r WILL_BE distance;
+	theta WILL_BE angle;
+);
+	theta = arccos((x*sqrt(h^2 + x^2 - r^2) - h*r) / (x^2 + h^2));
+END wrapping_angle;
+
+(*
+	Calculate the length L of a piece of string from the top
+	of a circle, of radius r, stretched around the circle to a
+	point (x,-h) located below the circle and to one side.
+
+	This will be used in the Hottel 'crossed string' method to
+	calculate view factors from a tube bank to a plane wall.
+*)
+MODEL wrapping_length(
+	x WILL_BE delta_distance;
+	h WILL_BE distance;
+	r WILL_BE distance;
+	L WILL_BE distance; (* resulting length (output) *)
+);
+	theta IS_A angle;
+	wrap_ang IS_A wrapping_angle(x,h,r,theta);
+	
+	L_tan, L_arc IS_A distance;
+	L_tan = sqrt(h^2 + x^2 - r^2);
+	L_arc = r*theta;
+	L = L_tan + L_arc;
+END wrapping_length;
+
+(*
+	Calculate the length L of a piece of string from the
+	top of a circle (at 0,0, with radius r) stretched to a
+	remote point (x,-h)	for the case where the string is
+	partly obstructed by another circle adjacent to the first
+	one. The obstructing circle is located at (2s,0) and has
+	the same radius r.
+*)
+MODEL wrapping_length_obstructed(
+	x WILL_BE delta_distance;
+	h WILL_BE distance;
+	r WILL_BE distance;
+	s WILL_BE distance;
+	L WILL_BE distance; (* resulting length (output) *)
+);
+	phi IS_A angle;
+	phi = arcsin(r/s);
+
+	L_arc, L_span, L_tan IS_A distance;
+	L_arc = r*phi;
+	L_span = 2*sqrt(s^2-r^2);
+	
+	x1 IS_A delta_distance;
+	-x1 = (x - 2*s);
+	psi IS_A angle;
+	wrap IS_A wrapping_angle(x1,h,r,psi);
+
+	L_hug IS_A delta_distance;
+	L_hug = r*(psi - (1{PI} - phi));
+	
+	L_tan = sqrt(h^2 + x1^2 - r^2);
+
+	L = L_arc + L_span + L_hug + L_tan;
+
+END wrapping_length_obstructed;
+
+(*
+	Conditional model, to calculate the length of a string
+	as for wrapping_length_obstructed and wrapping_length
+	for remote points (x,-h) where it is not yet known
+	whether or not the string is obstructed by an adjacent
+	circle. The distance x_crit is calculated, then depending
+	on its value, the appropriate wrapping length formula
+	is used. The equations are condensed from the above
+	models into fewer (but more complex) equations, to help
+	with model convergence.
+*)
+MODEL wrapping_length_ambi(
+	x WILL_BE delta_distance;
+	h WILL_BE distance;
+	r WILL_BE distance;
+	s WILL_BE distance;
+	L WILL_BE distance; (* resulting length (output) *)
+);
+	x_crit IS_A distance;
+	x_crit = s + h*sqrt(s^2-r^2)/r;
+
+	(* obstructed case *)	
+	phi IS_A angle;
+	phi = arcsin(r/s);
+
+	x1 IS_A delta_distance;
+	-x1 = (x - 2*s);
+
+	psi IS_A angle;
+	wrap IS_A wrapping_angle(x1,h,r,psi);
+
+	L_span IS_A distance;
+	L_span = 2*sqrt(s^2-r^2);
+	L_hug IS_A delta_distance;
+	L_hug = r*(psi - (1{PI} - phi));
+
+	L_expr_obstructed: L = r*phi + L_span + L_hug + sqrt(h^2 + x1^2 - r^2);
+
+	(* unobstructed case *)
+	theta IS_A angle;
+	wrap_clear IS_A wrapping_angle(x,h,r,theta);
+
+	L_expr_clear: L = r*theta + sqrt(h^2 + x^2 - r^2);
+	
+	CONDITIONAL
+		obstructed_expr: abs(x) > x_crit;
+	END CONDITIONAL;
+	is_obstructed IS_A boolean_var;
+	is_obstructed == SATISFIED(obstructed_expr, 1e-3{m});
+	WHEN(is_obstructed)
+		CASE TRUE:
+			USE L_expr_obstructed;
+		CASE FALSE:
+			USE L_expr_clear;
+	END WHEN;
+
+END wrapping_length_ambi;	
+
+MODEL vfac_empty;
+	(* nothing here, just a placeholder for refinement *)
+END vfac_empty;
+
+(*
+	View factor from a circle C to a flat strip OA
+	placed below it (see diagram at top of file)
+*)
+MODEL vfac_circle_plane(
+	x WILL_BE delta_distance;
+	h WILL_BE distance;
+	r WILL_BE distance;
+	F WILL_BE fraction; (* output *)
+) REFINES vfac_empty;
+	xzero IS_A delta_distance;
+	xzero = 0;
+	OBF, OECF, ADBF, ACF IS_A distance;
+	OBF_wrap IS_A wrapping_length(xzero,h,r,OBF);
+	OECF,OBF ARE_THE_SAME;
+	xneg IS_A delta_distance;
+	xneg = -x;
+	ADBF_wrap IS_A wrapping_length(xneg,h,r,ADBF);
+	ACF_wrap IS_A wrapping_length(x,h,r,ACF);
+
+	F = ((ADBF + OECF) - (OBF + ACF)) / (4{PI}*r);
+END vfac_circle_plane;
+
+(*
+	View factor from a circle C to a flat strip OA
+	placed below it, for the case where the view is
+	obstructed by adjacent circle D (see diagram at top
+	of file).
+*)
+MODEL vfac_circle_plane_obstructed(
+	x WILL_BE delta_distance;
+	h WILL_BE distance;
+	r WILL_BE distance;
+	s WILL_BE distance;
+	F WILL_BE fraction; (* output *)
+) REFINES vfac_empty;
+	xzero IS_A delta_distance;
+	xzero = 0;
+	OBF, OEGF, JKBF, JIHGF IS_A distance;
+	OBF_wrap IS_A wrapping_length(xzero,h,r,OBF);
+	OEGF,OBF ARE_THE_SAME;
+	xneg IS_A delta_distance;
+	xneg = -x;
+	JKBF_wrap IS_A wrapping_length(xneg,h,r,JKBF);
+	JIHGF_wrap IS_A wrapping_length_obstructed(x,h,r,s,JIHGF);
+
+	F = ((JKBF + OEGF) - (OBF + JIHGF)) / (4{PI}*r);
+END vfac_circle_plane_obstructed;
+
+(*
+	Conditional model that calculates the view factor
+	from a circle C to a flat string OA placed below it,
+	for the case where it may or may not be obstructed by
+	a neighbouring circle D.
+*)
+MODEL vfac_circle_plane_ambi(
+	x WILL_BE delta_distance;
+	h WILL_BE distance;
+	r WILL_BE distance;
+	s WILL_BE distance;
+	F WILL_BE fraction; (* output *)
+) REFINES vfac_empty;
+	xzero IS_A delta_distance;
+	xzero = 0;
+	OBF, OEGF, JKBF, JIHGF IS_A distance;
+	OBF_wrap IS_A wrapping_length(xzero,h,r,OBF);
+	OEGF,OBF ARE_THE_SAME;
+	xneg IS_A delta_distance;
+	xneg = -x;
+	JKBF_wrap IS_A wrapping_length(xneg,h,r,JKBF);
+	JIHGF_wrap IS_A wrapping_length_ambi(x,h,r,s,JIHGF);
+
+	F = ((JKBF + OEGF) - (OBF + JIHGF)) / (4{PI}*r);
+END vfac_circle_plane_ambi;
+
+(*
+	Model for the view factor from a single tube to a surface beneath it.
+*)
+MODEL singletube;
+	x "x coordinate of tube centreline" IS_A delta_distance;
+	x1 "left end of flat surface" IS_A delta_distance;
+	x2 "right end of flat surface" IS_A delta_distance;
+	h "height from cylinder axis to surface" IS_A distance;
+	r "cylinder radius" IS_A distance;
+	s "cylinder half-spacing" IS_A distance;
+	
+	F1, F2 IS_A fraction;
+	vfac1 IS_A vfac_circle_plane_ambi(x1a,h,r,s,F1);
+	vfac2 IS_A vfac_circle_plane_ambi(x2a,h,r,s,F2);
+
+	x1a, x2a IS_A delta_distance;
+	x1a = abs(x1 - x);
+	x2a = abs(x2 - x);
+
+	CONDITIONAL
+		c1: (x1 - x) * (x2 - x) >= 0;
+		c3: x1a > x2a;
+	END CONDITIONAL; 
+
+	sameside IS_A boolean_var;
+	greater1 IS_A boolean_var;
+	sameside == SATISFIED(c1);
+	greater1 == SATISFIED(c3);
+
+	expr1: F = F1 - F2;
+	expr2: F = F2 - F1;
+	exprS: F = F1 + F2;
+
+	F "view factor from tube to surface x1--x2" IS_A fraction;
+	WHEN(sameside,greater1)
+		CASE TRUE,TRUE:
+			USE expr1;
+		CASE TRUE,FALSE:
+			USE expr2;
+		CASE FALSE,TRUE:
+			USE exprS;
+		CASE FALSE,FALSE:
+			USE exprS;
+	END WHEN;
+
+	twoF IS_A fraction;
+	twoF = 2 * F;
+METHODS
+METHOD on_load;
+	FIX x; x:= 610 {mm};
+	FIX x1; x1 := -607.5 {mm};
+	FIX x2; x2 := +607.5 {mm};
+	FIX h; h := 200 {mm} - 23 {mm};
+	FIX r; r:= 20 {mm};
+	FIX s; s:= 22.5 {mm};
+	sameside := FALSE;
+	greater1 := TRUE;
+END on_load;
+END singletube;
+
+(*
+	Model of a tube bank (many tubes) facing opposite a
+	flat surface. Model serves only to calculate the view
+	factors, which will then be used elsewhere.
+*)
+MODEL tubebank;
+	W IS_A distance;
+	D IS_A distance;
+	theta IS_A angle;
+
+	B, N IS_A distance;
+	N*sin(theta)=D;
+	N*cos(theta)*2 = B - W;
+
+	h IS_A distance;
+	r IS_A distance;
+	L IS_A distance;
+	s IS_A distance;
+	
+	h = D - s; (* assume that tubes are spaced down from the top wall slightly *)
+
+	n IS_A integer_constant;
+	n :== 2; (* in the half-cavity *)
+
+	2*s = (W/2) / n;
+
+	nb IS_A integer_constant;
+	nb :== 2; (* in the half-cavity *)
+
+	(* 
+		Calculate view factors from every tube to every
+		slice of the plane opposite.
+
+		F_cum is from a tube to a plate from 0 to x[j].
+		F is from x[j-1] to x[j]
+		In both cases, j=[1..nb].
+	*)
+	F_cum[1..n][-nb..nb] IS_A fraction;
+	F[1..n][-nb..nb] IS_A fraction;
+
+	x_base[-nb..nb] IS_A delta_distance;
+	FOR j IN [-nb..nb] CREATE
+		x_base[j] = j/nb * (B/2);
+	END FOR;
+
+	x_tube[1..n] IS_A delta_distance;
+	FOR i IN [1..n] CREATE
+		x_tube[i] = (2*i-1)*s;
+	END FOR;
+
+	x[1..n][-nb..nb] IS_A delta_distance;
+
+	vfac[1..n][-nb..nb] IS_A vfac_empty;
+	FOR i IN [1..n] CREATE
+		x[i][0] = x_base[0] - x_tube[i];
+		vfac[i][0] IS_REFINED_TO vfac_circle_plane_ambi(x[i][0],h,r,s,F_cum[i][0]);
+		FOR j IN [1..nb] CREATE
+			x[i][j] = x_base[j] - x_tube[i];
+			x[i][-j] = x_base[j] + x_tube[i];
+			vfac[i][j] IS_REFINED_TO vfac_circle_plane_ambi(x[i][j],h,r,s,F_cum[i][j]);
+			vfac[i][-j] IS_REFINED_TO vfac_circle_plane_ambi(x[i][-j],h,r,s,F_cum[i][-j]);
+		END FOR;
+	END FOR;
+	FOR i IN [1..n] CREATE
+		FOR j IN [1..nb] CREATE
+			F[i][j] = F_cum[i][j] - F_cum[i][j-1];
+			F[i][-j] = F_cum[i][-j] - F_cum[i][-j+1];
+		END FOR;
+	END FOR;
+METHODS
+METHOD on_load;
+	FIX D,W,theta;
+	D := 200 {mm};
+	W := 575 {mm};
+	theta := 32 {deg};
+
+	FIX r;
+	r:= 42.164 {mm} / 2.;
+END on_load;
+END tubebank;

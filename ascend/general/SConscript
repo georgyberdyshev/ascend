@@ -1,0 +1,38 @@
+#!/usr/bin/python invoke_using_scons
+Import('libascend_env')
+import platform
+
+csrcs = Split("""
+	ascMalloc.c color.c
+	dstring.c except.c
+	hashpjw.c list.c listio.c mem.c
+	panic.c pool.c pretty.c
+	stack.c table.c tm_time.c
+	ospath.c env.c pairlist.c ltmatrix.c
+""")
+
+configh = libascend_env.SubstInFile(source='config.h.in')
+
+objs =[]
+for c in csrcs:
+	objs += libascend_env.SharedObject(c)
+
+if platform.system()!="Windows":
+	#required for clock_gettime()
+	libascend_env.AppendUnique(LIBS=['rt'])
+
+#--------------------
+# INSTALL
+
+import glob
+
+if libascend_env.get('CAN_INSTALL'):
+	installdir = Dir(libascend_env.subst("$INSTALL_ROOT$INSTALL_INCLUDE/ascend/general"))
+
+	headers = glob.glob("*.h")
+	libascend_env.InstallHeader(installdir,headers)
+
+Return('objs')
+
+# vim: set syntax=python:
+

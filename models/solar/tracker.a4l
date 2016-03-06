@@ -1,0 +1,110 @@
+(*
+Models of fixed surfaces and solar trackers.
+
+First version by Vikram Kaadam (2011) as part of GSOC2011.
+Second version by John Pye (2012).
+*)
+REQUIRE "atoms.a4l";
+REQUIRE "solar/solar_types.a4l";
+REQUIRE "johnpye/thermo_types.a4c";
+REQUIRE "johnpye/nrel/sunpos_nrel.a4c";
+
+(*
+	Fixed surface with specified tilt and orientation. Calculate the
+	angle between the solar rays and the surface normal.
+
+	Equation from Duffie and Beckman.
+*)
+MODEL sunpos_tilted_surface REFINES sunpos_nrel;
+	beta "inclination angle of tilted surface"
+	, gamma "azimuth angle of tilted surface"
+	, theta "angle between solar rays and normal to tilted surface"
+	IS_A angle;
+
+	theta = arccos(cos(zenith)*cos(beta) + sin(zenith)*sin(beta) * cos(azimuth - gamma));
+	(* if theta > 90{deg} then sun is behind the surface *)	
+END sunpos_tilted_surface;
+
+MODEL sunpos_tilted_surface_test REFINES sunpos_tilted_surface;
+	loc.latitude :== 43{deg};
+	loc.longitude :== 0{deg};
+	loc.elevation :== 0{m};
+METHODS
+METHOD on_load;
+	RUN offset.on_load;
+	FIX offset.h := 0;
+	FIX offset.tz := 0 {h}; (* timezone matches latitude, so solar time = clock time *)
+	FIX t := 31 {d} + 13 {d} - 1 {d} + 10 {h} + 30 {min};
+
+	FIX T := 293 {K};
+	FIX p := 1 {atm};
+
+	FIX beta := 45 {deg};
+	FIX gamma := 15 {deg};
+END on_load;
+METHOD self_test;
+	ASSERT abs(theta - 35 {deg}) < 0.5 {deg};
+END self_test;
+END sunpos_tilted_surface_test;
+
+
+(*
+	A single-axis solar tracker with horizontal axis. Calculate the 
+	angle between the solar rays and the normal to the tracker. Also
+	calculate the tracker orientation angle.
+
+	Equation adapted from http://www.powerfromthesun.net.
+
+	TODO need to be check carefully, because Powewr From The Sun uses the
+	azimuth as east of north angle convention, and we are using west of south.
+*)
+MODEL solar_tracker_single_horiz REFINES sunpos_nrel;
+	gamma "azimuth angle of the tracker axis"
+	, theta "angle between solar rays and the collector normal"
+	, rho "rotation angle of the tracker, with upwards = 0"
+	IS_A angle;
+
+	theta = arcsin(cos(altitude)*cos(azimuth - gamma));
+	rho = arctan(sin(azimuth - gamma)/tan(altitude));
+METHODS
+METHOD specify;
+	RUN offset.specify;
+	FIX p, T, t;
+	FIX gamma;
+END specify;
+METHOD values;
+	RUN offset.values;
+	gamma := 0 {deg}; (* axis aligned north-south *)
+	p := 1 {bar};
+	T := 298 {K};
+	t :=  43.5 {d};
+END values;
+END solar_tracker_single_horiz;
+
+
+(*
+	Test of the single-axis tracker model. Plot the values of rho and theta
+	for t = 43 to t = 44 d, for gamma = 0 and gamma = 90.
+*)
+MODEL solar_tracker_single_horiz_test REFINES solar_tracker_single_horiz;
+	loc.latitude :== 43{deg};
+	loc.longitude :== 0{deg};
+	loc.elevation :== 0{m};
+METHODS
+METHOD on_load;
+	RUN specify;
+	zenith := 0;
+	RUN offset.on_load;
+	(* Greenwich at 10:30 am GMT on 13 Feb *)
+	FIX offset.h := 0;
+	FIX offset.tz := 0 {h};
+	FIX t := 31 {d} + 13 {d} - 1 {d} + 10 {h} + 30 {min};
+	(* wot a luvly day: *)
+	FIX T := 298 {K};
+	FIX p := 1 {atm};
+	FIX gamma := 0 {deg};
+	SOLVER QRSlv;
+END on_load;
+END solar_tracker_single_horiz_test;
+
+

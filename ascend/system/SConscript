@@ -1,0 +1,58 @@
+#!/usr/bin/python invoke_using_scons
+Import('libascend_env')
+
+csrcs = Split("""
+	analyze.c block.c
+	bnd.c bndman.c calc.c cond_config.c
+	conditional.c discrete.c
+	diffvars.c
+	jacobian.c
+	logrel.c logrelman.c model_reorder.c
+	rel.c relman.c
+	slv.c
+	slv_common.c
+	slv_param.c
+	slv_stdcalls.c system.c var.c
+	incidence.c
+""")
+
+solver_env = libascend_env.Clone()
+
+defs = []
+objs = []
+
+for c in csrcs:
+	objs += solver_env.SharedObject(c)
+
+graph_env = solver_env.Clone()
+if libascend_env.get('WITH_GRAPHVIZ'):
+	graph_env.Append(CPPDEFINES=['WITH_GRAPHVIZ'])
+	graph_env.Append(CPPPATH=libascend_env['GRAPHVIZ_CPPPATH'])
+	if graph_env.get('HAVE_GRAPHVIZ_BOOLEAN'):
+		graph_env.Append(CPPDEFINES=['HAVE_GRAPHVIZ_BOOLEAN'])
+else:
+	print "NO GRAPHVIZ----"
+
+objs += graph_env.SharedObject('graph.c')
+
+# we don't need to link with GraphViz any more, because we dlopen it.
+#if libascend_env.get('WITH_GRAPHVIZ'):
+#	libascend_env.Append(LIBS=libascend_env['GRAPHVIZ_LIBS'])
+#	libascend_env.Append(LIBPATH=libascend_env['GRAPHVIZ_LIBPATH'])
+	
+
+#--------------------
+# INSTALL
+
+import glob
+
+if libascend_env.get('CAN_INSTALL'):
+	installdir = Dir(libascend_env.subst("$INSTALL_ROOT$INSTALL_INCLUDE/ascend/system"))
+
+	headers = glob.glob("*.h")
+	libascend_env.InstallHeader(installdir,headers)
+
+Return('objs')
+
+# vim: set syntax=python:
+

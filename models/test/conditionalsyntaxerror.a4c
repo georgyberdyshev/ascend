@@ -1,0 +1,19 @@
+REQUIRE "atoms.a4l";
+
+MODEL conditionalsyntaxerror;
+	x IS_A factor;
+	y IS_A factor;
+	
+	isvert: y <= 1;
+	isparab: x > 1;
+
+	vert: x = 0;
+
+	isvertp IS_A boolean_var;
+
+	(* here is the syntax error: *)
+	isvertp = SATISFIED(isvert);
+	(*     ^^^ SHOULD BE '==' instead of '=' *)
+
+END conditionalsyntaxerror;
+

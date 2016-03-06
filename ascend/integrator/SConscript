@@ -1,0 +1,33 @@
+#!/usr/bin/python invoke_using_scons
+Import('libascend_env')
+
+objs = []
+
+csrcs = Split("""
+	integrator.c samplelist.c
+""")
+# aww.c
+
+solver_env = libascend_env.Clone()
+if solver_env.get('WITH_MMIO'):
+	solver_env.Append(CPPPATH=["#/mmio"])
+
+for c in csrcs:
+	objs += solver_env.SharedObject(c)
+
+#--------------------
+# INSTALL
+
+import glob
+
+if libascend_env.get('CAN_INSTALL'):
+	installdir = Dir(libascend_env.subst("$INSTALL_ROOT$INSTALL_INCLUDE/ascend/integrator"))
+
+	headers = glob.glob("*.h")
+	libascend_env.InstallHeader(installdir,headers)
+
+print "OBJS =",objs
+Return('objs')
+
+# vim: set syntax=python:
+

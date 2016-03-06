@@ -1,0 +1,296 @@
+REQUIRE "ivpsystem.a4l";
+REQUIRE "atoms.a4l";
+REQUIRE "johnpye/thermo_types.a4c";
+
+(*
+	An attempt to model direct steam generation in pipe flow, limited to the
+	saturated regime, and with constant-valued friction factor. External heat
+	loss is also simplified.
+*)
+REQUIRE "steam/satsteamstream.a4c";
+
+IMPORT "johnpye/extpy/extpy";
+IMPORT "johnpye/roots";
+
+MODEL dsgsat3;
+	n IS_A integer_constant;
+	n :== 7;(* with L = 10m: 5,6,7,8,9,10,11 *)
+	         (* with L =  5m: 2,3,4,5,7,9,11,12,13,1415,16 *)
+
+	dz IS_A real_constant;
+	L IS_A real_constant;
+	L :== 16 {m};
+	dz :== L / (n-1);
+
+	nodes,butfirst1,upwind4,central IS_A set OF integer_constant;
+	nodes :== [1..n];
+	butfirst1 :== nodes - [1];
+	upwind4 :== nodes - [1,2,n];
+	central :== nodes - [1,n];
+
+	(* temporal derivatives *)
+	drho_dt[butfirst1] IS_A density_rate;
+	(* dmdot_dt[butfirst1] IS_A mass_rate_rate; *)
+	du_dt[butfirst1] IS_A specific_energy_rate;
+	dTw_dt[butfirst1] IS_A temperature_rate;
+
+	(* wall properties *)
+	rho_w IS_A mass_density;
+	D, D_2 IS_A distance;
+	c_w IS_A specific_heat_capacity;
+	A, A_w IS_A area;
+	h_int IS_A heat_transfer_coefficient; (* internal *)
+	h_ext IS_A heat_transfer_coefficient; (* external *)
+	z_A: A = 1{PI}*D^2/4;
+	z_Aw: A_w = 1{PI}*(D_2^2 - D^2)/4;
+
+	(* fluid properties *)
+	node[nodes] IS_A satsteamstream;
+	
+	(* flow properties *)
+	vel[nodes] IS_A speed;
+	T_w[butfirst1] IS_A temperature;
+	T[nodes] IS_A temperature;
+
+	(* constant, for the moment: *)
+	f IS_A positive_factor;
+	(* mu_f IS_A viscosity; *)
+	T_amb IS_A temperature;
+
+	(* system dynamics *)	
+	qdot_t[butfirst1], qdot_l[butfirst1] IS_A power_per_length;
+	qdot_s IS_A power_per_length;
+
+	(* some aliases just for easier review of the state of the model *)
+	x[nodes] IS_A fraction;
+	mdot[nodes] IS_A mass_rate;
+	p[nodes] IS_A pressure;
+	rho[nodes] IS_A mass_density;
+	u[nodes] IS_A specific_energy;
+
+(*	Qdot_t IS_A energy_rate;
+	Qdot_t = SUM[qdot_t[i] | i IN butfirst1]; *)
+
+	FOR i IN nodes CREATE
+		z_vel[i]: vel[i]*rho[i]*A = mdot[i];
+	END FOR;
+
+	FOR i IN nodes CREATE
+		x[i],    node[i].x ARE_THE_SAME;
+		mdot[i], node[i].mdot ARE_THE_SAME;
+		p[i],    node[i].p ARE_THE_SAME;
+		T[i],    node[i].T ARE_THE_SAME;
+		rho[i],  node[i].rho ARE_THE_SAME;
+		u[i],    node[i].u ARE_THE_SAME;
+		h[i] ALIASES node[i].h;
+	END FOR;
+
+	en_upwind4,en_central,mom_upwind4,mom_central,mass_upwind4,mass_central IS_A set OF integer_constant;
+
+	(* mass conservation *)
+	mass_upwind4 :== [];
+	mass_central :== central - mass_upwind4;
+	FOR i IN mass_upwind4 CREATE (* 4-pt upwind biased *)
+		z_massbal1[i]: A * drho_dt[i] * dz = - (rho[i+1]*A*vel[i+1] + 6 * rho[i]*A*vel[i] - 3. * rho[i-1]*A*vel[i-1] - 2. * rho[i-2]*A*vel[i-2]) / 6;
+	END FOR;
+	FOR i IN mass_central CREATE
+		z_massbal2[i]: A * drho_dt[i] * dz = - (rho[i+1]*A*vel[i+1] - rho[i-1]*A*vel[i-1]) / 2.;
+	END FOR;
+	FOR i IN butfirst1 - mass_upwind4 - mass_central CREATE
+		z_massbal[i]: A * drho_dt[i] * dz = - (rho[i]*A*vel[i] - rho[i-1]*A*vel[i-1]);
+	END FOR;
+
+	(* energy conservation *)
+	en_upwind4 :== [];
+	en_central :== [](*central - en_upwind4*);
+	FOR i IN en_upwind4 CREATE
+		z_enbal2[i]: dz * (qdot_t[i] - rho[i] * A * du_dt[i]) =
+			 + mdot[i] * (node[i+1].u + 6.*u[i] - 3.*u[i-1] - 2.*u[i-1]) / 6.
+			 + (p[i+1]/rho[i+1]*mdot[i+1] - p[i-1]/rho[i-1]*mdot[i-1]) / 2.;
+	END FOR;
+	FOR i IN en_central CREATE
+		z_enbal1[i]: dz * (qdot_t[i] - rho[i] * A * du_dt[i]) =
+			 + mdot[i] * (u[i] - u[i-1]) (* NOTE: not central *)
+			 + (p[i+1]/rho[i+1]*mdot[i+1] - p[i-1]/rho[i-1]*mdot[i-1]) / 2.;
+	END FOR;
+	FOR i IN butfirst1 - en_upwind4 - en_central CREATE
+		z_enbal3[i]: dz * (qdot_t[i] - A * rho[i]*du_dt[i]) = 
+			+ mdot[i] * (h[i] - h[i-1]) 
+			+ p[i]/rho[i]*(mdot[i] - mdot[i-1]);
+	END FOR;
+
+	(* stationary momentum *)
+	FOR i IN butfirst1 CREATE
+		z_mombal[i]: p[i] = p[i-1] - dz * f/D/2 * rho[i] * vel[i]^2;
+	END FOR;
+	mom_upwind4 :== [];
+	mom_central :== [];
+
+	(* internal/external convection, and thermal mass of wall -- no spatial derivs here *)
+	FOR i IN butfirst1 CREATE
+		z_wall[i]:  rho_w*A_w*c_w*dTw_dt[i] = qdot_s - qdot_l[i] - qdot_t[i];
+		z_loss[i]:  qdot_l[i] = h_ext*(1{PI}*D_2)*(T_w[i] - T_amb);
+		z_trans[i]: qdot_t[i] = h_int*(1{PI}*D)  *(T_w[i] - T[i]);
+	END FOR;
+
+	t IS_A time;
+
+METHODS
+
+	METHOD bound_self;
+		vel[nodes].upper_bound := 100 {m/s};
+		qdot_l[butfirst1].lower_bound := 0 {W/m};
+		FOR i IN nodes DO
+			RUN node[i].bound_self;
+		END FOR;
+	END bound_self;
+	METHOD default;
+		(* these are initial guesses only; fixed parameters are overwritten by 'values' below *)
+		t := 0 {s};
+		FOR i IN nodes DO
+			T[i] := 298 {K};
+			vel[i] := 1 {m/s};
+			RUN node[i].default_self;
+		END FOR;
+		FOR i IN butfirst1 DO
+			drho_dt[i] := 0 {kg/m^3/s};
+(* 			dmdot_dt[i] := 0 {kg/s/s}; *)
+			du_dt[i] := 0 {kJ/kg/s};
+			dTw_dt[i] := 0 {K/s};
+			qdot_t[i] := 0 {W/m};
+			qdot_l[i] := 0 {W/m};
+			x[i] := x[1];
+		END FOR;
+	END default; 
+	METHOD specify;
+		(* change to a proper steady-state problem, with fluid properties FREEd *)
+		FOR i IN nodes DO
+			RUN node[i].specify;
+			FIX dTw_dt[i];   FREE T_w[i];
+		END FOR;
+		FIX p[1];
+		FREE T[1];
+		FIX qdot_s;
+		FIX D, D_2;
+		FIX h_int, c_w, rho_w, h_ext;
+		FIX f;
+		(* FIX mu_f; *)
+		FIX T_amb;
+		(* fix derivatives to zero *)
+		FOR i IN butfirst1 DO
+			FREE x[i]; FIX p[i]; FREE node[i].mdot;
+			FIX drho_dt[i];  FREE p[i];
+			FIX du_dt[i]; FREE T[i];
+(*			FREE mdot[i]; FIX dmdot_dt[i]; *)
+		END FOR;
+	END specify;
+	METHOD values;
+		D := 0.06 {m};
+		D_2 := 0.07 {m};
+		T_amb := 298 {K};
+		h_int := 1000 {W/m^2/K};
+		h_ext := 5 {W/m^2/K};
+		f := 0.03;
+		mdot[1] := 0.26 {kg/s};
+		p[1]    := 10 {bar};
+		x[1]    := 0.23;
+		rho_w := 1000 {kg/m^3};
+		qdot_s := 100 {W/m^2} * D_2 * 10 * 11{m} / L;
+		FOR i IN butfirst1 DO
+			T_w[i] := 298 {K};
+(*			dmdot_dt[i] := 0.0 {kg/s/s};*)
+			du_dt[i] := 0 {kJ/kg/s};
+			rho[i] := 6 {kg/L};
+			node[i].dp_dT := +0.5 {kPa/K};
+			p[i] := 5 {bar};
+		END FOR;
+	END values;
+	METHOD on_load;
+		RUN configure_steady;
+		RUN ode_init;
+	END on_load;
+	(*---------------- a physically sensible steady-state configuration-----------*)
+	METHOD configure_steady;
+		EXTERNAL defaultself_visit_childatoms(SELF);
+		EXTERNAL defaultself_visit_submodels(SELF); 
+		RUN ClearAll;
+		RUN specify;
+		RUN bound_steady;
+		RUN values;
+	END configure_steady;
+	METHOD bound_steady;
+		RUN bound_self;
+		T_w[butfirst1].upper_bound := 1000 {K};
+	END bound_steady;
+	(*------------------------- the dynamic problem ------------------------------*)
+	METHOD configure_dynamic;
+		FOR i IN butfirst1 DO
+			FREE drho_dt[i];  FIX rho[i];
+(*			FREE dmdot_dt[i]; FIX mdot[i]; *)
+			FREE du_dt[i];    FIX u[i];
+			FREE dTw_dt[i];   FIX T_w[i];
+			FREE x[i];
+			FREE T[i];
+		END FOR;
+		t := 0 {s};
+	END configure_dynamic;
+	METHOD free_states;
+		FOR i IN butfirst1 DO
+			FREE rho[i];
+(*			FREE mdot[i]; *)
+			FREE u[i];
+			FREE T_w[i];
+		END FOR;
+	END free_states;	
+	METHOD ode_init;
+		(* add the necessary meta data to allow solving with the integrator *)
+		t.ode_type := -1;
+
+		FOR i IN butfirst1 DO
+			drho_dt[i].ode_id := 4*i;     rho[i].ode_id := 4*i;
+			drho_dt[i].ode_type := 2;     rho[i].ode_type := 1;
+
+(*			dmdot_dt[i].ode_id := 4*i+1;  mdot[i].ode_id := 4*i+1;
+			dmdot_dt[i].ode_type := 2;    mdot[i].ode_type := 1;*)
+			
+			du_dt[i].ode_id := 4*i+2;     u[i].ode_id := 4*i+2;
+			du_dt[i].ode_type := 2;       u[i].ode_type := 1;
+
+			dTw_dt[i].ode_id := 4*i+3;    T_w[i].ode_id := 4*i+3;
+			dTw_dt[i].ode_type := 2;      T_w[i].ode_type := 1;
+		END FOR;
+
+		FOR i IN nodes DO
+			(* p[i].obs_id :=         1 + 10*i; *)
+			(* x[i].obs_id :=         2 + 10*i; *)
+			(* mdot[i].obs_id := 4 + 10*i; *)
+			(* node[i].h.obs_id :=    3 + 10*i; *)
+		END FOR;
+		FOR i IN butfirst1 DO
+			(* qdot_t[i].obs_id :=    3 + 10*i; *)
+			(* T_w[i].obs_id :=       5 + 10*i; *)
+			(* T[i].obs_id :=         6 + 10*i;*)
+		END FOR;
+
+		mdot[n].obs_id := 1;
+		x[n].obs_id := 1;
+		p[n].obs_id := 1;
+		h[n].obs_id := 15;
+		vel[n].obs_id := 10;
+		T[n].obs_id := 20;
+		T_w[n].obs_id := 30;
+
+	END ode_init;
+	METHOD fix_outlet_quality;
+		FIX x[n];
+		FREE mdot[1];
+	END fix_outlet_quality;
+
+	METHOD roots;
+		EXTERNAL roots(SELF);
+	END roots;
+
+END dsgsat3;
+ADD NOTES IN dsgsat2;
+	'QRSlv' iterationlimit {50}
+END NOTES;

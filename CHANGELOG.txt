@@ -1,0 +1,318 @@
+30 Apr 2012
+-----------
+
+Version 0.9.8
+ - 64-bit and 32-bit support for Windows (John)
+ - Added new SOLVER, OPTION and SOLVE commands for use in METHODS (John)
+ - Much improved Observer functionality with plotting and 'study' (Aakash)
+ - Added support for viewing ALIASES lists in the PyGTK GUI (John)
+ - Fixed crash due to console output with when starting with pythonw on
+   Windows.
+ - Support for SWIG 2.x added.
+ - Fixed a couple of minor memory leaks and too-early freeing (john)
+ - Rewrote Simulation::solve to respect solver-imposed iteration limits (john)
+ - Reduced default QRSlv time limit to 20 seconds (down from 1500 s).
+ - Added ASCEND syntax highlighting capability for several new text editors
+   (see http://ascend4.org/Syntax_highlighting for details)
+ - Added example model of a combined cycle gas turbine power station (John)
+ - Stopped addition of several redundant files in the source code tarball
+   which required improvements to SCons 'DistTar' functionality (John)
+ - Require SUNDIALS 2.4.0, no support for older versions now.
+ - Fixed bug with detection of SUNDIALS on Windows (Luo Yu, john)
+ - Fixed a couple of minor GUI errors in PyGTK GUI (john)
+ - Added Save As functionality for dependency graph (grivan) 
+ - Fixed bug 425: 'View notes' window shows duplicated notes (grivan)
+ - Fixed errors in closed boiler feedwater heater model (Kelvin Hang Sio)
+ - Fixed G77 detection for use by LSODE (john)
+ - Now requiring SCons v0.98 or later.
+ - Fixed bug 436: CONOPT_PATH problems with Linux (john)
+ - Some progress toward packaged App version of ASCEND for Mac (john)
+ - Partially updated Canvas GUI code to work with latest Gaphas (arijit)
+ - Extensive set of new CUnit test cases.
+ - New installer should be able to navigate most HTTP proxies now (John)
+ - Numerous other bugs fixed, see: http://bugs.ascend4.org/changelog_page.php
+
+24 Dec 2009
+-----------
+
+Version 0.9.7
+ - Fixed problem with environment variables under Windows in 0.9.6 release
+ - Porting to Mac OS X (John)
+ - Adding support for IPOPT optimisation solver (Mahesh, Ben, John)
+ - Adding new LINK syntax and DER and INDEPENDENT statements (Dante, Ben, John)
+ - Improvements to canvas-based GUI (Arijit, John)
+ - CSV data reader (Jose, John)
+
+
+30 Apr 2009
+-----------
+
+Version 0.9.6
+ - Major code reorgansation, switched active development back to trunk
+ - Snapshop of code before start of GSOC2009 students.
+ - Much expanded syntax highlighting for gedit users (Linux)
+ - Improved packaging for Ubuntu (more standards-compliant)
+ - Restored functionality of 'relative paths' usages for Tcl/Tk GUI.
+ - Implementation of Canvas GUI progressed a bit more, still pre-alpha.
+ - Support for Autotools and Visual Studio removed (too stale to stay there)
+ - Header files are now located in /usr/include/ascend on Linux.
+ - Added Python bindings for FPROPS.
+ - Added Hydrogen, Water to FPROPS.
+ - Fixed support for 'critical terms', speed of sound, specific heat 
+   and partial derivatives in FPROPS.
+ - DTAR now fails if dpkg-buildpackage fails. 
+ - In PyGTK GUI, 'fixed variables' dialog now shows variable values.
+ - Graphviz system graph now shows unconverged relations.
+ - Added 'sticky' installer preferences in Windows, to help prevent
+   uninstall problems.
+ - Add support for SCons 1.2.0 (some deprecation warnings still though)
+ - ascend-config outputs paths with double backslash on Windows.
+ - Added LoadString method in Python bindings, for use by Canvas GUI.
+ - Fixed apparent bug in pairlist_append_unique.
+ - Added pairlist_set and pairlist_values_and_destroy.
+ - Added new 'notequery' module for 'most refined' notes on a model.
+ - Added new test models in test/canvas/blocktypes.a4c.
+
+
+29 Sep 2008
+-----------
+
+Version 0.9.5.116
+ - Instance::as renamed to Instance::in (for expressing a value in the
+   desired units) because 'as' is a reserved word in Python.
+ - Some efforts underway to implement new rigorous thermodynamic property
+   calculator using MBWR and Helmholtz correlations.
+ - Fixed linking of LSODE with '-fPIC' required for amd64 platform.
+ - Added 'dtar' utility to facility quick building of DEB packages from
+   source code tarball plus debian.tar.gz file.
+ - Some efforts on creating a graphical 'block' editor including partial
+   implementation of a canvas widget plus scanning the library for suitable
+   'block' type models according to certain criteria.
+ - 'kinematic_viscosity' now available in atoms.a4l.
+ - Added legend to Krishnan's 'zplot' utility.
+ - Some further efforts to complete the tie-in to the IPOPT solver (now ver 3.4.0)
+ - Added 'notequery.c' to seek out most applicable NOTES on a given instance.
+ - Fixed bug with 'apply' button in Units of Measurement dialog.
+ - Fixed silly mistake in 'turbine' model in johnpye/rankine.a4c.
+ - Fix python handling of 'unable to build system' error.
+ - Moved 'ascend-config' package to 'ascend-devel' RPM.
+ - Fixed linking against Tcl/Tk for Fedora 9.
+ - Some updates to build scripts for new SCons API.
+ - Silenced some debug output from various places.
+ - Added code for reading climate data in ACDB (Australian Climate Databank)
+    format.
+ - Update to support IPOPT 3.4.0
+ - Some work on fixing bug with IDA when derivs without vars present.
+ - Fixed section numbering in 'book.pdf'.
+ - Fixed Graphviz behaviour when model too large.
+ - Expanded GtkSourceView2 highlighting.
+ - Fixed installation in GNOME Applications menu.
+ - Fixed some problems with GUI object names that crept in due to use of Glade-3
+ - Added new external library 'FPROPS' for calculation of accurate thermodynamic
+    properties.
+
+Version 0.9.5.115
+ - Was not released (due to probs with version numbering on the Ubuntu PPA)
+
+27 Feb 2008
+-----------
+
+Version 0.9.5.114
+
+ - Fixed launching problems on Windows
+ - Added Units of Measurement dialog to PyGTK GUI.
+ - Updated version check to use the CMU server instead of old UNSW server.
+ - Fixed ascend-config script for Windows paths containing spaces.
+ - Fixed display of logrels in PyGTK GUI.
+ - PyGTK GUI correctly opens PDF docs if available on local machine.
+ - Added a PyGTK crash dialog to give information about failures in ASCEND. 
+ - DOPRI5 converted to full 'solver' status (lives in solvers/dopri5 now).
+ - Added (experimental) DOPRI5 integrator to the Windows binary installer.
+ - Fixed some problems with linking to CONOPT optimiser
+ - Streamlined some internal build-time dependencies.
+ - Improved gtksourceview-2.0 highlighting for use with Gedit on Linux.
+ - Added Graphviz bindings to allow dependency graph view.
+ - Some code renaming/refactoring in 'compiler' and 'system' sections.
+ - Fixed splash-screen behaviour
+ - Refactored 'moduleview' out of 'gtkbrowser'.
+ - Some preliminary fixes to attempt support for Mac platform.
+ - Added some CUnit test cases for 'compiler' section, renamed all CUnit tests.
+ - Fixed dlopen bug on Linux.
+ - Changes to measures.a4l to add SI prefixes and modified the base units to
+   their abbreviation instead of full names.
+
+TODO: more work to get IPOPT solver working.
+TODO: still some problems with DOPRI5 solver.
+TODO: fix GraphViz dependency so that it can be dlopened rather than linked.
+
+
+19 Aug 2007
+-----------
+
+Version 0.9.5.113
+
+ - Fixed launching of help files/web links from PyGTK GUI on Linux.
+ - Added option in Windows installer to install header files for developers.
+ - Fixed value of @PYTHON@ on Windows for use in ascend-config script.
+ - Fixed deletion of $INSTDIR/solvers on Windows during uninstall.
+
+TODO: work on support for users with GIMP's GTK+ runtime installed.
+TODO: translate line-endings for installed files on windows.
+
+5 Aug 2007
+----------
+
+Version 0.9.5.112
+
+Solver interface
+ - all solvers and integrators are now built as 'external library' DLL/SOs.
+ - new ASCENDSOLVERS environment variable gives additional search path location
+   that is checked when attempting to satisfy IMPORT statements.
+ - Fixed behaviour scons when lex/yacc not available.
+ - Many ASC_DLLSPEC qualifiers added as result of the expanded use of external
+   libraries.
+
+Solvers
+ - CONOPT no longer needs to be present at buildtime. This was possible due
+   to permission from Arne Drud to add the 'conopt.h' file to our source code.
+ - BLAS and LINPACK are now embedded in the LSODE DLL/SO. They are not
+   part of libascend, which makes the main DLL about 1 MB smaller.
+ - Some bugs in the DOPRI5 integrator identified (full testing still not
+   completed).
+ - placeholder for a future TRON solver (work still to do on that)
+ - work underway on the IPOPT optimisation solver.
+
+Model library
+ - Equations of state models from Krishnan.
+ - Added ASCEND port of the standard GAMS example problem.
+ 
+Windows installer
+ - Added ability to download and install missing dependencies. This
+   makes getting started with ASCEND much simpler for new users.
+ - Added the user's manual (in PDF form) to the installer package.
+
+RPM package
+ - A SUNDIALS RPM package has been submitted for inclusion in Fedora, making
+   installation of ASCEND possible with a single download on that distro.
+ - RPM divided into subpackages ascend, ascend-devel, ascend-doc.
+ - Other work on building RPMs for a range of Linux platforms using
+   the new OpenSUSE Build Service.
+
+DEB package
+ - Fixed.
+
+3 Jun 2007
+----------
+
+Version 0.9.5.111
+
+Windows packaging improvements:
+ - Launch via pythonw.exe instead of batch file
+ - File association for .a4c and .a4l files
+ - Add Model Library link to Start menu
+ - Add CHANGELOG.txt and LICENSE.txt to Start menu
+ - Detect missing PyGTK, PyCairo or PyGObject at install-time
+ - Fix message for missing matplotlib in fourbarplot.py
+
+DOPRI5 integrator
+ - Experimental release of DOPRI5 integrator for testing
+ - Changes to Integrator API to allow loading external DLL/SOs
+
+Linux packaging improvements
+ - Add SONAME to libascend
+ 
+ 
+26 May 2007
+-----------
+
+Version 0.9.5.110
+
+Removed dependency on matplotlib and numpy when ASCEND PyGTK
+first load.
+
+Fixed some problems with files left behind after uninstall
+on Windows.
+
+Added bug tracker link to help menu.
+
+Added loading splash screen
+Eliminated some cruft form the tarball.
+Restored basic build suppot for Autotools (Ben)
+Added missing .svg files in Windows installer
+Added icon in Windows Start menu
+Console now minimised by default on Windows
+
+28 April 2007
+-------------
+
+Version 0.9.5.109
+
+Added Debian packaging.
+
+Suppressed passing of FILE* objects between Python and C on 
+the Windows platform, owing to a bug/limitation in GCC on 
+MinGW.
+
+First upload of Windows installer to SF.net (there have been 
+earlier versions on the Wiki though).
+
+
+
+23 April 2007
+-------------
+
+Version 0.9.5.108
+
+Alpha relase including new PyGTK GUI. This release continues 
+a sequence of releases in the ASCEND Wiki, but is the first 
+version we are releasing using the SF.net File Releases system.
+
+ - Fedora Core 6 RPM
+ - PyGTK GUI
+ - Plotting with Matplotlib
+ - ExtPy functionality for script-based METHODS
+ - External 'black box' function support restored 
+ - Documentation converted to LyX
+ - Python-based test suite
+ - CONOPT and CMSlv support restored
+
+
+10 March 2007
+-------------
+
+(No release)
+
+ - created this changelog using file releases list from old 
+   website -- JP
+
+
+April 24 2000
+-------------
+
+Version IV 0.9.1
+
+ - Expanded chemical species database
+ - Dynamic simulation modeling libraries
+
+
+June 23 1998
+------------
+
+ - WinNT, Win95, UNIX sources
+ - WinNT, Win95 binaries
+ - Redhat Linux 5 RPM binary
+ - Redhat Linux 5 RPM source
+ - Dynamic simulation modeling libraries
+ - Howto-ascend examples and modeling guidelines manual, indexed.
+ - GUI and syntax document manual, partially revised.
+
+
+October 1997
+------------
+
+ASCEND IV 0.8 
+
+ - WinNT, Win95, UNIX sources
+ - WinNT, Win95 binaries
+ - GUI and syntax document manual.
+

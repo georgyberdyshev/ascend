@@ -1,0 +1,30 @@
+REQUIRE "system.a4l";
+
+MODEL test1;
+	x,y,z IS_A solver_var;
+	x = y + z;
+METHODS
+METHOD on_load;
+	FIX y;
+END on_load;
+END test1;
+
+MODEL test2;
+	x,y,z IS_A solver_var;
+	x = y + z;
+METHODS
+METHOD on_load;
+	FIX x,a,b,z;
+END on_load;
+END test2;
+
+MODEL test3;
+	x,y[1..2], z IS_A solver_var;
+	n IS_A integer_constant;
+	x = y[1] + y[2] + z;
+METHODS
+METHOD on_load;
+	FIX x,y[n],z;
+END on_load;
+END test3;
+

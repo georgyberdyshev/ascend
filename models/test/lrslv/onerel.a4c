@@ -1,0 +1,42 @@
+REQUIRE "atoms.a4l";
+(*
+	A simplest-possible logical relation problem. The relation
+
+		fact != fiction
+
+	Should result fiction to the NOT value of fact, as we are FIXing the value
+	of fact.
+
+	Note that a bug in FIX requires this '.fixed :=' syntax to be used for
+	the moment.
+*)
+MODEL onerel;
+	fact IS_A boolean_var;
+	fiction IS_A boolean_var;
+	
+	fact != fiction;
+METHODS
+	METHOD default;
+		fact := FALSE;
+		fiction := TRUE;
+	END default;
+
+	METHOD specify;
+		fact.fixed := TRUE;
+	END specify;
+
+	METHOD values;
+		fact := TRUE;
+	END values;
+
+	METHOD on_load;
+		RUN default_self;
+		RUN reset;
+		RUN values;
+	END on_load;
+
+	METHOD self_test;
+		ASSERT fiction == FALSE;
+	END self_test;
+END onerel;
+	

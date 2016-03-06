@@ -1,0 +1,138 @@
+REQUIRE "atoms.a4l";
+(* => atoms.a4l, measures.a4l, system.a4l, basemodel.a4l *)
+PROVIDE "guthriecosts.a4l";
+
+(*
+ *  guthriecosts.a4l
+ *  by Arthur W. Westerberg
+ *  Part of the ASCEND Library
+ *  $Date: 2006/03/03 10:39:19 $
+ *
+ *  This file is part of the ASCEND Modeling Library.
+ *
+ *  Copyright (C) 1994-1998 Carnegie Mellon University
+ *
+ *  The ASCEND Modeling Library is free software; you can redistribute
+ *  it and/or modify it under the terms of the GNU General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2 of the License, or (at your option) any later version.
+ *
+ *  The ASCEND Modeling Library is distributed in hope that it
+ *  will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ *  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *)
+
+
+MODEL cost_info_pressure_vessel;
+
+	MandSindex,Fp,Fm,Fc	IS_A 	factor;
+
+        Fc = Fp*Fm;
+
+
+	(*
+
+ 	   Marshall and Swift FOR May 1994 - 990.8
+
+	   pressure factor Fp
+
+	   P	up to 	50psig	100	200	300	400	500
+	   Fp         	1.00    1.05    1.15    1.20    1.35    1.45
+
+	   P          	600	700	800	900	1000
+	   Fp	      	1.60	1.80	1.90	2.30	2.50
+
+
+	   material factor Fm
+
+	   material	CS	SS	Monel	Titanium
+	   Fm,clad	1.00	2.25	3.89	4.25
+	   Fm,solid	1.00	3.67	6.34	7.89
+
+	 *)
+
+
+  METHODS
+
+    METHOD specify;
+	FIX MandSindex;
+	FIX Fm;
+	FIX Fp;
+    END specify;
+
+    METHOD reset;
+	RUN ClearAll;
+	RUN specify;
+    END reset;
+
+END cost_info_pressure_vessel;
+
+
+MODEL Guthrie_cost_pressure_vessel;
+
+	ci			IS_A 	cost_info_pressure_vessel;
+	installed_cost		IS_A	monetary_unit;
+	D,H			IS_A	distance;
+
+	installed_cost = (ci.MandSindex/280)*101.9{USD}*(D/1{ft})^1.066
+	                   *(H/1{ft})^0.802*(2.18+ci.Fc);
+
+
+  METHODS
+
+    METHOD specify;
+	RUN ci.specify;
+	FIX D;
+	FIX H;
+    END specify;
+
+    METHOD reset;
+	RUN ClearAll;
+	RUN specify;
+    END reset;
+
+END Guthrie_cost_pressure_vessel;
+
+MODEL simple_pressure_vessel_cost;
+
+	gc			IS_A    Guthrie_cost_pressure_vessel;
+	installed_cost		IS_A 	monetary_unit;
+	cc			IS_A	circle_constant;
+	liq_holdup_time		IS_A 	time;
+	vol_flow		IS_A 	volume_rate;
+	volume			IS_A	volume;
+	H_to_D			IS_A	factor;
+	D,H			IS_A	distance;
+
+	gc.D,D			ARE_THE_SAME;
+	gc.H,H			ARE_THE_SAME;
+	gc.installed_cost,
+	    installed_cost	ARE_THE_SAME;
+
+
+
+	volume = vol_flow*liq_holdup_time;
+	volume = cc*D^2/4.0*H;
+	H      = H_to_D*D;
+
+  METHODS
+
+    METHOD specify;
+	RUN gc.specify;
+	FREE D;
+	FREE H;
+	FIX vol_flow;
+	FIX liq_holdup_time;
+	FIX H_to_D;
+    END specify;
+
+    METHOD reset;
+	RUN ClearAll;
+	RUN specify;
+    END reset;
+
+END simple_pressure_vessel_cost;

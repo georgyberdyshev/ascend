@@ -1,0 +1,108 @@
+REQUIRE "johnpye/absorber.a4c";
+REQUIRE "johnpye/surgetank.a4c";
+REQUIRE "johnpye/condenser.a4c";
+REQUIRE "johnpye/separator.a4c";
+REQUIRE "johnpye/mixer.a4c";
+
+(*
+	Open-loop model. given the absorber conditions, what pressure is required
+	in the surge tank in order for the mass to be contained ?
+*)
+MODEL loop;
+
+	A IS_A absorber;
+
+	S IS_A separator;
+	A.S_out, S.S_in ARE_THE_SAME;
+	A.mdot_out, S.mdot_in ARE_THE_SAME;
+
+	C IS_A condenser_lmtd_sat(S.S_v, S_cond_out); (* in, out *)
+	S.S_v, C.S_in ARE_THE_SAME;
+	S_cond_out IS_A iapws95_2phase;
+
+
+	M IS_A mixer;
+	M.S_in_1, S.S_l ARE_THE_SAME; (* connect separated liquid to mixer *)
+	M.S_in_2, C.S_out ARE_THE_SAME; (* connect condenser outlet to mixer *)
+	M.mdot_in_1, S.mdot_l ARE_THE_SAME;
+	M.mdot_in_2, C.mdot_out ARE_THE_SAME;
+
+	(* T IS_A surgetank;
+	C.mdot_out, T.mdot_water_in ARE_THE_SAME;
+	S_tank_in IS_A thermo_state; *)
+	(* M.S_out, S_tank_in ARE_THE_SAME; *)(* connect mixed outlet to surge tank *)
+	(* m_T ALIASES T.m_water; *)
+	(* p_T ALIASES T.p; *)
+	(* V_water_T ALIASES T.V_water;	 *)
+
+	m_water IS_A mass;
+	m_A (* + m_T *) = m_water;
+
+	(* some aliases, for usability *)
+
+	Q_A ALIASES A.Q;
+	Q_C ALIASES C.q;
+	mdot_A_in ALIASES A.mdot_water_in;
+	mdot_C_out ALIASES C.mdot_out;
+	
+	m_A ALIASES A.m_water;
+
+	p_A ALIASES A.p;
+
+	x_exit_A ALIASES A.x_exit;
+
+	(*A.p = T.p;*)
+	(* A.p = 40 {bar};*)
+
+METHODS
+METHOD default_self;
+	RUN reset; RUN values; RUN bound_self;
+END default_self;
+
+METHOD specify;
+	FIX A.V_total (*, A.mdot_water_in*);
+	FIX A.Q;
+	FIX A.T;
+
+	FIX C.T_ci;
+	FIX C.T_co;
+	FIX C.cp_c;
+
+	(* FIX T.rho_water;
+	FIX T.V_vessel,	T.m_gas; *)
+
+	(* without surgetank, can't... FIX m_water; *)
+END specify;
+
+METHOD values;
+	(* fixed *)
+	m_water := 8000 {kg};
+
+	A.V_total := 300{m} * 16 * 1{PI}/4*( 40{mm} )^2;
+	A.mdot_water_in := 0.4 {kg/s};
+	A.Q := 1000 {W/m^2} * 27(*concentration*) * 500{mm} * 60{m};
+	A.T := 500 {K};
+
+	C.cp_c := 4.2 {kJ/kg/K};
+	C.T_ci := 473.15 {K};
+	C.T_co := 490.15 {K};
+
+	(* T.T := C.T_co;
+	T.rho_water := 997 {kg/m^3};
+	T.V_vessel := 10000 {L};
+	T.m_gas := 40 {kg}; *)
+
+	(* free *)
+	m_A := 1000 {kg};
+	(* m_T := 7000 {kg}; *)
+	C.mdot_c := 10 {kg/s};
+END values;
+
+METHOD bound_self;
+	RUN C.bound_self;
+	S_cond_out.h.lower_bound := -500 {kJ/kg}; (* aids convergence *)
+END bound_self;
+
+END loop;
+
+

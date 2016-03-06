@@ -1,0 +1,422 @@
+#!/usr/bin/env python
+#	dtar - Tool to produce .deb package from source tarball
+#	Copyright (C) 2008-2012 John Pye <john@curioussymbols.com>
+#
+#	This program is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; either version 2, or (at your option)
+#	any later version.
+#
+#	This program is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with this program; if not, write to the Free Software
+#	Foundation, Inc., 59 Temple Place - Suite 330,
+#	Boston, MA 02111-1307, USA.
+
+import sys, re, tarfile, os.path, subprocess, shutil, getopt, glob
+import apt
+from debian_bundle import deb822, changelog
+
+def usage():
+	print """%s: create debian package directly from source code tarball
+%s [-s] originaltarball.tar.* [debian.tar.bz2|debian.tar.gz]
+
+    originaltarball.tar.*
+                The tarball containing the source code for the package
+                or packages you are going to create
+    debian.tar.*
+                OPTIONAL tarball containing the debian files
+                for your package. Only use this file if you have excluded
+                the debian/* files from your original source code tarball.
+                It is probably best to use a separate debian* tarball
+                for these files if you are likely to run into build
+                problems, eg when uploading packages to a build farm such
+                as Ubuntu PPA or openSUSE Build Service.
+
+    -s         
+    --source    Create source package only, no binary
+
+    -h
+    -help       Print this message.
+
+	-n
+    --nooverwrite
+                Do not overwrite package files in current directory at
+                the end of the build.
+
+    -jN
+                Parallel build using N processors.
+    -k
+    --keep
+                Keep temporary files at end of build, for checking/debugging
+                purposes. These will be in /tmp/dtar-*, and you will have to
+                manually delete them yourself if you use this option. Normally
+                all the files are deleted if the build completes successfully.
+"""
+
+opts,args = getopt.getopt(sys.argv[1:],"nhskj:",["help","source","nooverwrite","keep","parallel="])
+
+# do we just want a source package?
+buildsource = False
+overwrite = True
+clean = True
+parallel = ""
+
+for _o,_a in opts:
+	if _o in ['-h','--help']:
+		usage()
+		sys.exit()
+	elif _o in ['-s','--source']:
+		buildsource = True
+	elif _o in ['-n','--nooverwrite']:
+		overwrite = False
+	elif _o in ['-k','--keep']:
+		clean = False
+	elif _o in ['-j','--parallel']:
+		if int(_a) > 1:
+			parallel = "-j%s" % _a
+	else:
+		assert False,"unhandled option"
+
+if len(args)<1 or len(args)>2:
+	raise RuntimeError("One or two tarballs must be supplied to dtar! (see dtar --help)")
+
+# the tarball is the argument to this script
+
+if parallel:
+	print "Parallel build with",parallel
+
+startingcwd = os.getcwd()
+
+f = args[0]
+
+fmeta = None
+if len(args)==2:
+	# debian.tar.* meta-file tarball, optional
+	fmeta = args[1]
+	fmetafull = os.path.abspath(fmeta)
+
+	if not os.path.exists(fmeta):
+		raise RuntimeError("Debian metadata tarball '%s' was not found" % fmeta)
+
+ffull = os.path.abspath(f)
+
+# get the first filename in the tarball
+t = tarfile.open(ffull)
+M = t.getmembers()
+print M[0].name
+# split the top-level directory name from that path
+
+for i in [0,1]:
+	print "name =",M[i].name
+	h,path = os.path.split(M[i].name)
+	print "h =",h
+	print "path =",path
+	if h:
+		break
+if not h:
+	raise RuntimeError("Tarball appears not contain a top-level directory")
+
+while h:
+	head = h
+	h,path = os.path.split(path)
+
+print "Head directory = ",head
+
+r = re.compile(r"^%s/debian/([^/]*)$" % re.escape(head))
+r2 = re.compile(r"^debian/([^/]*)$")
+
+debfiles = {}
+# this is a dictionary of sequences, first element 'm' or 's' depending
+# on whether the debian file comes from the 'meta' tarball (if given), or the
+# source tarball.
+
+# search for debian/* files inside the original tarball
+
+for m in M:
+	if r.match(m.name):
+		h,p = os.path.split(m.name)
+		debfiles[p] = [t,m]
+
+# search for debian/* files inside the meta tarball
+tmeta = None
+if fmeta:
+	tmeta = tarfile.open(fmetafull)
+	Mmeta = tmeta.getmembers()
+	for m in Mmeta:
+		print "meta file contains '%s'" % m.name
+		if r2.match(m.name):
+			h,p = os.path.split(m.name)		
+			debfiles[p] = [tmeta,m]
+
+def getdebfile(name):
+	_t,_f = debfiles[name]
+	return _t.extractfile(_f)
+	
+mandatorydebfiles = ['control','changelog','rules']
+
+missingdebfiles = []
+for _f in mandatorydebfiles:
+	if _f not in debfiles:
+		missingdebfiles.append(_f)
+if missingdebfiles:
+	s = "Tarball(s) missing required debian/* files: %s" %missingdebfiles
+	raise RuntimeError(s)
+
+fc = getdebfile('control')
+
+# display mandatory fields from 'debian/control'
+
+controlmandatory = ['Source','Maintainer']
+
+control = deb822.Deb822(fc.read())
+for _c in controlmandatory:
+	print "%s: %s" % (_c, control[_c])
+
+# check that debian/changelog is current
+
+fchange = getdebfile('changelog')
+
+changes = changelog.Changelog()
+changes.parse_changelog(file=fchange.read(),strict=1)
+
+if not changes:
+	s = "Failed to parse Debian changelog file."
+	raise RuntimeError(s)
+
+debianname = "%s-%s" % (control['Source'],changes.upstream_version)
+
+print "DEBIAN NAME =",debianname
+
+need_tarball_reheaded = False
+if debianname != head:
+	need_tarball_reheaded = True
+	#raise RuntimeError("Debian files not up to date: debian/changelog refers to version '%s' but tarball head directory is '%s'"
+	#	% (debianname,head));
+
+# check for build-time dependencies
+
+dependencies = ['build-essential','fakeroot','debhelper']
+
+if 'Build-Depends' in control:
+	#print "Build-Depends:",control['Build-Depends']
+	c = apt.Cache()
+	splitre = re.compile(r"\s*,\s+")
+	dependencies += splitre.split(control['Build-Depends'])
+
+	print "DEPS = ",dependencies
+
+
+print "Checking build dependencies..."
+depsmissing = []
+depre = re.compile(r"^(\S+)(\s*\(\s*([<>=]+\s*\S+)\))?$") # \s*\(\s*({<<|<=|=|>=|>>})\s*([^\)]+)\)\s*\[([^\]])\]$
+import apt_pkg
+for d in dependencies:
+	mm = apt_pkg.ParseDepends(d)[0]
+	ok = 0
+	for m in mm:
+		try:
+			i = c[m[0]]
+		except KeyError:
+			continue
+
+		if not i.isInstalled:
+			# if it's not installed, it's not OK
+			continue
+
+		if m[1] and m[2]:
+			# if version number is specified
+			cmp = apt_pkg.VersionCompare(c[m[0]].installed.version,m[1])
+			if m[2]=="<<" and cmp<0:
+				ok = 1
+			elif m[2]=="<=" and cmp<=0:
+				ok = 1
+			elif m[2]=="=" and cmp==0:
+				ok = 1
+			elif m[2]==">=" and cmp>=0:
+				ok = 1
+			elif m[2]==">>" and cmp>0:
+				ok = 1
+		else:
+			# no version number specified
+			ok = 1
+	if not ok:
+		depsmissing.append(d)
+
+if depsmissing:
+	raise RuntimeError("Unable to proceed. Missing buildtime dependencies: %s" % (depsmissing))
+
+# extract tarball to tmp dir
+
+maindir = "/tmp/dtar-%s" % os.getpid()
+
+if os.path.exists(maindir):
+	raise RuntimeError("Temp path '%s' already exists!"%maindir)
+
+os.mkdir(maindir)
+
+try:
+	# extract source code tarball
+
+	print "Extracting tarball to '%s'..." % maindir
+	os.chdir(maindir)
+	t.extractall()
+	assert(os.path.exists(head))
+	print "Files extracted to '%s'" % os.getcwd()
+
+	# extract meta-file tarball if provided
+
+	if tmeta:
+		print "Extracting meta tarball to '%s'..." % maindir
+		os.chdir(os.path.join(maindir,head))
+		tmeta.extractall()
+		os.chdir(maindir)
+	
+	assert(os.path.exists(os.path.join(head,"debian/control")))
+
+	# apply patches so that dpkg-buildpackage can come and detect them
+
+	print "LOOKING FOR PATCHES"
+	os.chdir(os.path.join(maindir,head))
+	if os.path.exists("debian/patches"):
+		print "PATCH DIR FOUND"
+		patches = glob.glob("debian/patches/*.patch")
+		for p in patches:
+			print "PATCH %s" % p
+			pf = open(p,"r")
+			po = subprocess.Popen(["patch","-p1"],stdin = pf,executable="/usr/bin/patch")
+			po.communicate()
+			pf.close()
+			if 0==po.returncode:
+				print "PATCH %s APPLIED OK" % p
+				os.unlink(p)
+			else:
+				raise RuntimeError("Error applying patch '%s': is it in 'patch -p1' format?" % p)
+		os.rmdir("debian/patches")
+	os.chdir(maindir)
+
+	# copy original tarball (recompressing to .gz/reheading if required?)
+
+	unzip = None
+	ext = None
+	if f[-7:] == ".tar.gz" or f[-4:] == ".tgz":
+		print "Original tarball is in gzip format"
+		unzip = ["gzip","-d"]
+		exe = "/bin/gzip"
+		ext = "gz"
+	elif f[-8:] == ".tar.bz2":
+		print "Original tarball is in bzip2 format"
+		unzip = ["bzip2","-d"]
+		exe = "/bin/bzip2"
+		ext = "bz2"
+
+	if not unzip:
+		raise RuntimeError("Unrecognised input format for '%s'" % f)
+
+	if need_tarball_reheaded:
+		print "Extracting tarball for re-heading..."
+		tar1 = tarfile.open(ffull)
+		tar1.extractall()
+		tar1.close()
+		print "Renaming head directory from '%s' to '%s'..." % (head,debianname)
+		assert(os.path.exists(head))
+		os.rename(head,debianname)
+		assert(os.path.exists(debianname))
+		print "Re-zipping in .tar.gz format..."
+		temptar = "%s_%s.orig.tar" % (control['Source'],changes.upstream_version)
+		temptz = "%s.%s"%(temptar,ext)
+		tar = tarfile.open(temptz, "w:gz")
+		tar.add(debianname, recursive=True)
+		tar.close()
+		assert(os.path.exists(temptz))
+
+	elif ext != "gz" and ext != "bz2":
+		print "Source tarball needs to be re-zipped to gzip format."
+		temptar = "%s_%s.orig.tar" % (control['Source'],changes.upstream_version)
+		temptz = "%s.%s"%(temptar,ext)
+		print "Creating tarball copy '%s'" % temptz
+		shutil.copyfile(ffull,temptz)
+		print "Extracting with %s..." % unzip[0]
+		subprocess.call(unzip + [temptz], executable=exe)
+		assert(os.path.exists(temptar))
+		print "Recompressing with gzip..."
+		subprocess.call(['gzip',temptar])
+		
+	else:
+		origname = "%s_%s.orig.tar.%s" % (control['Source'],changes.upstream_version,ext)
+		print "Original tarball is in %s format" % unzip[0]
+		shutil.copyfile(ffull, origname)
+
+	print "Checking for correct original tarball name..."
+	origname = "%s_%s.orig.tar.%s" % (control['Source'],changes.upstream_version,ext)
+	assert(os.path.exists(origname))
+
+	t1 = t
+
+	# build the source package
+	#print "Building source package..."
+	#res = subprocess.call(["dpkg-source","-b",head,ffull],executable="/usr/bin/dpkg-source")
+
+	#if res:
+	#	raise RuntimeError("dpkg-source returned error code %d" % res)
+
+	# build the binary package
+	print "Entering directory '%s'" % debianname
+	os.chdir(debianname)
+	if buildsource:
+		print "Building source package..."
+		_cmd = ["dpkg-buildpackage","-i","-S","-rfakeroot","-sa"]
+		res = subprocess.call(_cmd)
+	else:
+		print "Building binary package..."
+		_cmd = ["dpkg-buildpackage","-i","-rfakeroot","-sa"]
+		if parallel:
+			_cmd += [parallel]
+		res = subprocess.call(_cmd)
+
+	if res:
+		raise RuntimeError("dpkg-buildpackage returned error code %s" % res)
+
+except Exception, e:
+	print "ERROR IN DTAR: %s"% str(e)
+	print "Temporary files can be inspected in %s" % maindir
+	sys.exit(1)
+
+print "Found files:"
+os.chdir(maindir)
+resultfiles = glob.glob("*.dsc") + glob.glob("*.deb") + glob.glob("*.gz") + glob.glob("*.changes")
+print resultfiles
+
+# move found files to current directory
+failedtomovefiles = []
+for _f in resultfiles:
+	_p2 = os.path.join(startingcwd,_f)
+
+	if not overwrite and os.path.exists(_p2):
+		failedtomovefiles.append(_f)
+	shutil.move(_f, _p2)
+
+if failedtomovefiles:
+	raise RuntimeError("Failed to move the following files (check --nooverwrite): %s",failedtomovefiles)
+
+#clean up files
+
+if clean:
+	print "Cleaning up files from '%s'..." % maindir
+	assert maindir[:10]=="/tmp/dtar-"
+	for _root,_dirs,_files in os.walk(maindir,topdown=False):
+		for _f in _files:
+			os.remove(os.path.join(_root,_f))
+		for _d in _dirs:
+			os.rmdir(os.path.join(_root,_d))
+	os.rmdir(maindir)
+else:
+	print "Leaving all temporary files in '%s'..." % maindir
+
+print "All done, exiting"
+
+

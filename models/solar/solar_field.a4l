@@ -1,0 +1,184 @@
+(*
+Model of a parabolic trough solar thermal collector field, of the type
+of SEGS VI plant, closely following the approach of Angela Patnode (2006).
+https://www.nrel.gov/analysis/sam/pdfs/thesis_patnode06.pdf
+
+First version by Vikram Kaadam (2011) as part of GSOC2011.
+Second version by John Pye (2012).
+*)
+REQUIRE "ivpsystem.a4l";
+REQUIRE "atoms.a4l";
+REQUIRE "johnpye/thermo_types.a4c";
+REQUIRE "solar/tracker.a4l"; (* sun position *)
+REQUIRE "solar/therminol.a4c"; (* oil properties *)
+REQUIRE "johnpye/datareader/testtmy3.a4c"; (* weather data reader *)
+REQUIRE "solar/trough_receiver.a4c";
+
+(*
+	Model of a parabolic trough field, based on the approach of Patnode, but
+	modified to allow for arbitrary (horizontal) orientation of the collector
+	axis.
+*) 
+MODEL parabolic_trough;
+	(* field geometry *)
+	W_apert    "collector aperture width" IS_A distance;
+	L_spacing  "'length of spacing' between troughs" IS_A distance; (* clarification required, assume centre-to-centre? *)
+	L_SCA      "length of a single solar collector assembly (SCA)" IS_A distance;
+	N_SCA      "total number of solar collector assemblies" IS_A factor;
+	f          "focal length of collector" IS_A distance;
+
+	A_field    IS_A area;
+	A_field = N_SCA * L_SCA * W_apert;
+
+	(* field performance *)
+	Qdd_abs    "solar radiation absorbed by receiver tubes per aperture area" IS_A power_per_area;
+	DNI        "direct normal irradiance" IS_A power_per_area;
+	IAM        "incidence angle modifier" IS_A factor;
+	eta_shading IS_A fraction;
+	eta_endloss IS_A fraction;
+	eta_field  "averaged field efficiency" IS_A fraction;
+	eta_HCE    "averaged heat collection element efficiency" IS_A fraction;
+	avail_SF   "solar field availability - on-sun portion" IS_A fraction;
+	
+	(* tracker and sun position *)
+	sun        IS_A solar_tracker_single_horiz;
+	t          "local time (standard, not DST correction)" ALIASES sun.t;
+
+	(* constants that define the location -- can we do this better?? *)
+	(* Kramer Junction *)
+	sun.loc.latitude :== 37.21 {deg};
+	sun.loc.longitude :== -117.022 {deg};
+	sun.loc.elevation :== 755 {ft};
+	(* TODO the location should be extracted from the weather data *)
+
+	(* weather data (download your TMY3, see http://ascend4.org/Data_reader) *)
+	dr IS_A tmy3;
+	dr.tmydata.filename :== 'johnpye/datareader/723815TY.csv';
+	t, dr.t ARE_THE_SAME;
+	T_amb ALIASES dr.T;
+	T_amb, sun.T ARE_THE_SAME;
+	p_amb ALIASES dr.p;
+	p_amb, sun.p ARE_THE_SAME;
+	DNI, dr.DNI ARE_THE_SAME;
+
+	(* OPTICAL PERFORMANCE *)
+	
+	(* absorbed solar radiation, Patnode eq 2.1. factored the cos(theta) into IAM. *)	
+	absheat_eq: Qdd_abs = DNI * IAM * eta_shading * eta_endloss * eta_field * eta_HCE * avail_SF;
+	(* NOTE that eta_field and eta_HCE are given fixed values here, though their 
+	components factors are shown in Patnode sect 2.2.5 *)
+
+	(* TODO where is Patnode eq 2.8 ? looks like an error? *)
+	
+	(* incidence angle modifier, Patnode eq 2.9 *)
+	(* TODO check... do these values assume angles in degrees? *)
+	IAM * cos(sun.theta) = cos(sun.theta) + 8.84e-4 * sun.theta - 5.369e-5 * sun.theta^2;
+	
+	(* row shading (Stuetzle), Patnode eq 2.12, limited to range [0,1] *)
+	eta_shading_1, eta_shading_2 IS_A factor; (* before being normalised to [0,1] *)
+	shading_1: eta_shading_1 = (L_spacing/W_apert) * (cos(sun.zenith)/cos(sun.theta));
+	shading_2: eta_shading_2 = 1. + 0.5*((eta_shading_1 - 1) - abs(eta_shading_1 - 1));
+	shading_3: eta_shading = (eta_shading_2 + abs(eta_shading_2))/2;
+
+	(* end loss (Lippke), Patnode eq 2.13, limited to range [0,1] *)
+	eta_endloss_1, eta_endloss_2 IS_A factor;
+	endloss_1: eta_endloss_1 = 1 - f * tan(sun.theta) / L_SCA;
+	endloss_2: eta_endloss_2 = 1. + 0.5*((eta_endloss_1 - 1) - abs(eta_endloss_1 - 1));
+	endloss_3: eta_endloss = (eta_endloss_2 + abs(eta_endloss_2))/2;
+
+	(* LOSSES FROM HCE *)
+	
+	T_i, T_o IS_A temperature;
+	hce_types IS_A set OF symbol_constant;
+	hce_types :== ['air','vacuum','hydrogen'];
+
+	recv[hce_types] IS_A receiver_loss_base;
+	hce_frac[hce_types] IS_A fraction;
+	FOR i IN hce_types CREATE
+		recv[i] IS_REFINED_TO receiver_loss_integ(i, T_i, T_o, DNI);
+	END FOR;
+	
+	Qdd_loss_recv "HCE losses per aperture area" IS_A power_per_area;
+	(* receiver heat loss, Patnode eq 2.19 *)
+	Qdd_loss_recv * W_apert = SUM[recv[i].Qd_loss * hce_frac[i] | i IN hce_types];
+	
+	(* LOSSES FROM FIELD PIPING *)
+	DT "temperature difference ambient to field piping" IS_A delta_temperature;
+	(* average external temp difference, Patnode eq 2.21 *)
+	T_amb + DT = 0.5 * (T_i + T_o);
+
+	Qdd_loss_pipe "losses from pipework, per solar field aperture area" IS_A power_per_area;
+	
+	(* solar field piping loses, Patnode eq 2.20 *)
+	Qdd_loss_pipe = 0.01693{W/m^2/K}*DT - 0.0001683{W/m^2/K^2}*(DT^2) + 0.78e-7{W/m^2/K^3}*(DT^3);	
+	(* typically 10 W/m2 or less, apparently *)
+	
+	(* NET ENERGY GAIN IN HTF *)
+	
+	Vdot_i IS_A volume_rate;
+	Qdd_fluid IS_A power_per_area;
+	(* net absorbed energy, Patnode eq 2.22 *)
+	Qdd_fluid = Qdd_abs - Qdd_loss_pipe - Qdd_loss_recv;
+	
+	inlet, outlet IS_A therminol;
+	inlet.T, T_i ARE_THE_SAME;
+	outlet.T, T_o ARE_THE_SAME;
+	
+	Q_net IS_A energy_rate;
+	Q_net = Qdd_fluid * A_field;
+	
+	(* first-law energy balance, Patnode eq 2.23 *)
+	(outlet.h - inlet.h) * inlet.rho * Vdot_i = Q_net;
+
+METHODS
+	METHOD specify;
+		RUN sun.specify;
+		FIX L_spacing;
+		FIX W_apert, f, L_SCA, eta_field, eta_HCE, avail_SF;
+		
+		FIX inlet.T;
+		FIX N_SCA;
+		FIX Vdot_i;
+		FIX hce_frac[hce_types];
+		FIX t;
+		FREE sun.p, sun.T;
+	END specify;
+
+	METHOD values;		
+		L_spacing := 13 {m};
+		W_apert := 4.83 {m};
+		f := 5 {m};
+		L_SCA := 50 {m};
+		N_SCA := 256;
+
+		(* tracker, including sun position and geographical location *)
+		RUN sun.values;
+		sun.offset.tz := -8{h};
+		sun.offset.h := 0;
+		t := 43.5 {d};
+
+		(* fixed field efficiency based on values in Patnode Table 2.1 *)
+		eta_field := 0.857;
+		eta_HCE := 0.832;
+		avail_SF := 1;
+
+		inlet.T := 60{K} + 273.15 {K};
+		T_amb := 30{K} + 273.15 {K};
+		Vdot_i := 400{m^3/hour};
+
+		hce_frac['air'] := 0.0;
+		hce_frac['vacuum'] := 1.0;
+		hce_frac['hydrogen'] := 0.0;
+
+		(* initial guess, needed for solving OK  *) 
+		T_o := 420 {K} + 273.15{K};
+	END values;
+
+	METHOD on_load;
+		RUN specify;
+		RUN values;
+		SOLVER QRSlv;
+		OPTION convopt 'RELNOM_SCALE';
+	END on_load;	
+END parabolic_trough;
+

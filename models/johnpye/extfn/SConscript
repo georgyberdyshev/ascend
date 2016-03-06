@@ -1,0 +1,25 @@
+Import('env')
+extfn_env = env.Clone()
+
+srcs = Split("""
+	extfntest.c
+""")
+
+extfn_env.Append(LIBPATH=['#'])
+extfn_env.Append(LIBS=['ascend'])
+
+lib = extfn_env.SharedLibrary("extfntest",srcs
+	,SHLIBSUFFIX = env['EXTLIB_SUFFIX']
+	,SHLIBPREFIX = env['EXTLIB_PREFIX']
+)
+
+# To run the test
+# type
+#
+# ASCENDLIBRARY=../../../models LD_LIBRARY_PATH=../../.. PYTHONPATH=../../../pygtk python extfntest.py
+
+# Return the targs
+env['extfns'] += [lib]
+
+# vim: set syntax=python:
+

@@ -1,0 +1,141 @@
+#!@PYTHON@
+from optparse import OptionParser
+import sys, platform, os
+
+#---------------------
+# This file is generated automatically by SCons and installed in at INSTALL_BIN.
+# Use it to query for local configuration of ASCEND on your system for example
+# when building external 'plugins' such as external computations and external
+# solvers etc.
+#
+# It's written in python since (because of SCons) we know we have Python on 
+# this system already but we don't know that about unix shell (eg on Windows).
+#
+# Note that SCons supports reading of the output from this script, using
+# features offered since version 0.96.91, although this functionality
+# is a bit problematic on the Windows platform, and/or when paths contain spaces.
+#
+# This file inspired by other software that uses the same approach, eg
+# ginac-config, xft-config, cppunit-config.
+#
+# Type ascend-config --help for usage.
+#---------------------
+
+def path_absolute(p):
+	"""Mac-specific routine for making absolute paths based on location of this
+	Python script, which will have been embedded in the ASCEND.app/Contents
+	dir."""
+	if os.path.isabs(p):
+		return p
+	else:
+		return os.path.join(sys.path[0],p)
+
+# platform specific name munging for '-L' and '-I' file paths...
+munge = lambda s: s
+
+if platform.system()=="Windows":
+	import _winreg
+	x=_winreg.ConnectRegistry(None,_winreg.HKEY_LOCAL_MACHINE)
+	y= _winreg.OpenKey(x,r"SOFTWARE\ASCEND")
+	LIB,t = _winreg.QueryValueEx(y,"INSTALL_LIB")
+	BIN,t = _winreg.QueryValueEx(y,"INSTALL_BIN")
+	INCLUDE,t = _winreg.QueryValueEx(y,"INSTALL_INCLUDE")
+	ASCDATA,t = _winreg.QueryValueEx(y,"INSTALL_ASCDATA")
+	MODELS,t = _winreg.QueryValueEx(y,"INSTALL_MODELS")
+
+	#assume that these won't change too much on Windows...
+	EXTLIB_SUFFIX = "_ascend.dll"
+	EXTLIB_PREFIX = ""
+
+	_winreg.CloseKey(y)
+	_winreg.CloseKey(x)
+	
+	try:
+		# if we have access to GetShortPathName, we'll use it...
+		import win32api
+		def munge1(s):
+			s1 = s
+			try:
+				# we can only munge the path if it actually exists
+				s1 = win32api.GetShortPathName(s)
+			except:
+				# if it doesn't exist, we just return the un-munged path
+				pass
+			# follow the pkg-config approach and use forward slashes instead of backslashes
+			s1 = s1.replace("\\","/")
+			return s1
+		munge = munge1 
+	except:
+		pass
+
+elif platform.system()=="Darwin":
+	LIB = path_absolute("")
+	BIN = path_absolute("")
+	INCLUDE = path_absolute("Headers")
+	ASCDATA = path_absolute("Resources")
+	MODELS = path_absolute("""@ASC_LIBRARY_REL_DIST@""")
+	SOLVERS = path_absolute("""@ASC_SOLVERS_REL_DIST@""")
+
+else:
+	# For Linux and whatever else, use the original values passed to us from SCons:
+	LIB="@INSTALL_LIB@"
+	BIN="@INSTALL_BIN@"
+	INCLUDE="@INSTALL_INCLUDE@"
+	ASCDATA="@INSTALL_ASCDATA@"
+	MODELS="@INSTALL_MODELS@"
+	EXTLIB_SUFFIX="@EXTLIB_SUFFIX@"
+	EXTLIB_PREFIX="@EXTLIB_PREFIX@"
+
+usage = "usage: %prog [--help,...]"
+# the rest of this script is about returning those values in the standard way
+parser = OptionParser(usage=usage, version="@VERSION@")
+
+parser.add_option("--libs", action="store_true", dest="libs", help="show linker flags (for ASCEND libraries)")
+parser.add_option("--cppflags", action="store_true", dest="cppflags", help="show C pre-processor flags (for ASCEND header files)")
+parser.add_option("--data", action="store_true", dest="data", help="show location of ASCEND data files")
+parser.add_option("--models", action="store_true", dest="models", help="show location of ASCEND model library")
+parser.add_option("--extlib-suffix", action="store_true", dest="extlibsuff", help="show suffix to be used with external libraries")
+parser.add_option("--extlib-prefix", action="store_true", dest="extlibpref", help="show prefix to be used with external libraries")
+
+(options, args) = parser.parse_args()
+
+ok = False
+
+if options.cppflags:
+	include = ""
+	if INCLUDE!="/usr/include":
+		include=INCLUDE
+	if len(include):
+		print "-I"+munge(include)+""
+	ok = True
+
+if options.libs:
+	libs = ""
+	if LIB!="/usr/lib":
+		libs = LIB
+	Lflag  = ""
+	if len(libs):
+		Lflag = "-L"+munge(libs)+" "
+	print Lflag + "-lascend"
+	ok = True
+
+if options.data:
+	print ASCDATA
+	ok = True
+
+if options.models:
+	print MODELS
+	ok = True
+
+if options.extlibsuff:
+	print EXTLIB_SUFFIX
+	ok = True
+
+if options.extlibpref:
+	print EXTLIB_PREFIX
+	ok = True
+
+if not ok:
+	sys.stderr.write("invalid option '%s' (use --help for more info)\n" % args)
+	sys.exit(1)
+

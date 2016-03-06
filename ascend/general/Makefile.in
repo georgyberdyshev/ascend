@@ -1,0 +1,66 @@
+#  ASCEND general routines Makefile
+#  Ben Allan, Kirk Abbott
+#  January 4, 1993
+
+
+SHELL = /bin/sh
+builddir = ..
+srcdir = @fullpathsrcdir@/../generic/general
+VPATH := @fullpathsrcdir@/../generic/general
+
+
+
+#  The next variables are the primary executables and/or libraries that
+#  this makefile is responsible for, and the default target of this
+#  makefile.
+
+EXECUTABLE = 
+
+LIBRARY = libascgeneral.a
+
+
+default: $(LIBRARY)
+
+
+
+#  Defines and Includes that are specific to this directory
+
+DIR_SPECIFIC_DEFS = 
+DIR_SPECIFIC_INCS = 
+
+
+
+#  The next variables list the source files (EXEC_SCRS) to compile
+#  into the object files (EXEC_OBJS) that are linked with the
+#  library files (EXEC_LIBS) to make EXECUTABLE
+
+EXEC_SRCS = 
+
+EXEC_OBJS = 
+
+EXEC_LIBS = 
+
+
+
+#  The next variables list the source files (LIB_SCRS) to compile
+#  into the object files (LIB_OBJS) that are combined to make LIBRARY
+
+LIB_OBJS = \
+	dstring.o except.o \
+	hashpjw.o list.o listio.o pairlist.o pool.o \
+	pretty.o stack.o table.o tm_time.o ospath.o env.o
+
+LIB_SRCS = $(LIB_OBJS:%.c=%.o)
+
+#  The global makefile macros (ConfigAscend) and global rules (Makefile.Rules)
+#  
+include $(builddir)/ConfigAscend
+include $(builddir)/Makefile.Rules
+
+
+
+# DO NOT DELETE THIS LINE -- g++dep uses it.
+# DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
+
+
+# IF YOU PUT ANYTHING HERE IT WILL GO AWAY

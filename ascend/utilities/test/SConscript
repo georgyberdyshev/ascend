@@ -1,0 +1,7 @@
+Import('test_env')
+
+import glob
+test_env['TESTSRCS_UTILITIES'] = [test_env.File(i) for i in glob.glob("test_*.c")]
+
+test_env.SharedLibrary("testdynaload",["shlib_test.c"])
+

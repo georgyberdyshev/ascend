@@ -1,0 +1,12 @@
+Import('env')
+
+srcs = Split("""
+	dasum.f daxpy.f dcopy.f ddot.f dnrm2.f dscal.f idamax.f
+	dtrsv.f dswap.f dgemv.f dtrsm.f xerbla.f lsame.f dgemm.f
+""")
+
+blas = []
+for src in srcs:
+	blas.append( env.SharedObject(src,SHFORTRAN=env['FORTRAN']) )
+
+Return('blas')

@@ -1,0 +1,90 @@
+#!/usr/bin/python invoke_using_scons
+Import('libascend_env')
+
+csrcs = Split("""
+	anoncopy.c anonmerg.c anontype.c arrayinst.c ascCompiler.c
+	atomsize.c atomvalue.c bintoken.c braced.c
+	case.c check.c child.c childdef.c childio.c childinfo.c cmpfunc.c
+	commands.c copyinst.c createinst.c defaultpaths.c destroyinst.c
+	dimen.c dimen_io.c dump.c
+	evaluate.c exprio.c exprs.c exprsym.c extcall.c
+	extfunc.c extinst.c find.c forvars.c fractions.c
+	freestore.c func.c findpath.c
+	importhandler.c initialize.c instance_io.c
+	instantiate.c instmacro.c instquery.c
+	library.c link.c linkinst.c logrel_io.c logrel_util.c
+	logrelation.c mathinst.c mergeinst.c module.c name.c
+	nameio.c notate.c notequery.c numlist.c parentchild.c
+	parpend.c pending.c plot.c proc.c procframe.c
+	procio.c prototype.c qlfdid.c refineinst.c rel_common.c relation.c
+	rel_blackbox.c 
+	relation_io.c relation_util.c rootfind.c reverse_ad.c 
+	safe.c
+	select.c setinst_io.c setinstval.c setio.c
+	sets.c slist.c slvreq.c simlist.c statement.c statio.c switch.c
+	symtab.c syntax.c temp.c tmpnum.c type_desc.c
+	type_descio.c typedef.c typelint.c
+	units.c universal.c
+	value_type.c visitinst.c visitlink.c vlist.c vlistio.c
+	watchpt.c watchptio.c when.c when_io.c when_util.c
+""")
+
+import platform, glob
+
+scanparse_env = libascend_env.Clone()
+
+scanparse_env.Append(CCFLAGS=scanparse_env.get('YACC_CCFLAGS'))
+
+if scanparse_env.has_key('HAVE_YACC'):
+	parsersource = libascend_env.CFile('ascParse.y',YACCFLAGS=['-y','-d','-pzz_'])
+	#libascend_env.SideEffect('ascParse.h',parsersource)
+	# backup the lex output for use by people without lex:
+	if libascend_env.get('UPDATE_NO_YACC_LEX'):
+		libascend_env.Command('ascParse_no_yacc.c',parsersource[0],Copy('$TARGET','$SOURCE'))
+		libascend_env.Command('ascParse_no_yacc.h',parsersource[1],Copy('$TARGET', '$SOURCE'))
+else:
+	parserheader = libascend_env.Command('ascParse.h', 'ascParse_no_yacc.h',Copy('$TARGET', '$SOURCE'))
+	parsercode = libascend_env.Command('ascParse.c','ascParse_no_yacc.c',Copy('$TARGET','$SOURCE'))
+	parsersource = [parsercode,parserheader]
+
+if scanparse_env.has_key('HAVE_LEX'):
+	scannersource = libascend_env.CFile('scanner.l',LEXFLAGS=['-l','-Pzz_'])
+	libascend_env.Depends(scannersource,parsersource)
+	# backup the lex output for use by people without lex:
+	if libascend_env.get('UPDATE_NO_YACC_LEX'):
+		libascend_env.Command('scanner_no_lex.c',scannersource,Copy('$TARGET','$SOURCE'))
+else:
+	scannersource = libascend_env.Command('scanner.c','scanner_no_lex.c',Copy('$TARGET', '$SOURCE'))
+
+packages_env = libascend_env.Clone()
+packages = packages_env.SharedObject('packages.c')
+
+objs = [parsersource[0],scannersource,packages]
+
+# SLOPPY sources. This is a painful hack that should be fixed using 'config.h' style solution.
+
+sloppy_csrcs = ['rounded.c','interval.c']
+
+sloppy_env = libascend_env.Clone()
+sloppy_env.Append(CPPDEFINES=['SLOPPY']);
+for s in sloppy_csrcs:
+	objs += sloppy_env.SharedObject(s)	
+
+#libascend_env.Depends(scanner,[parsersource[1]])
+
+for s in [csrcs]:
+	objs += libascend_env.SharedObject(s)
+
+#--------------------
+# INSTALL
+
+if libascend_env.get('CAN_INSTALL'):
+	installdir = Dir(libascend_env.subst("$INSTALL_ROOT$INSTALL_INCLUDE/ascend/compiler"))
+
+	headers = glob.glob("*.h")
+	libascend_env.InstallHeader(installdir,headers)
+
+Return('objs')
+
+# vim: set syntax=python:
+

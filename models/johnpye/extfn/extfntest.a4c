@@ -1,0 +1,31 @@
+REQUIRE "atoms.a4l";
+IMPORT "johnpye/extfn/extfntest";
+
+MODEL extfntest;
+
+	y IS_A factor;
+	x IS_A factor;
+
+	do_addone: add_one(
+		x : INPUT; 
+		y : OUTPUT
+	);
+
+METHODS
+
+METHOD specify;
+	FIX x;
+END specify;
+METHOD values;
+	x := 1.0;
+END values;
+
+METHOD on_load;
+	RUN specify; RUN values;
+END on_load;
+
+METHOD self_test;
+	ASSERT y == 2;
+END self_test;
+
+END extfntest;

@@ -1,0 +1,92 @@
+(*	ASCEND modelling environment
+	Copyright (C) 1996  Carnegie Mellon University
+	Copyright (C) 2006 Carnegie Mellon University
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+	
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*)
+REQUIRE "system.a4l";
+IMPORT "sensitivity/sensitivity";
+(*
+	A very simple test model for the external sensitivity analysis
+	module.
+
+	by Ben Allan, 1996
+	Self-testing added by John Pye, 2007
+
+	--- old comments (don't seem to be accurate) ---
+
+	This module is used to calculate the sensitity matrix dX/dU where
+	X is a vector OF vapor compositions and U is a vector OF liquid
+	compositions. This sensitivity matrix is THEN used to calculate
+	J, the Jacobian, as described IN Fidkowski et al. (1995).
+*)
+
+MODEL sensitivity_test;
+	nc IS_A integer_constant;
+	X[1..nc] IS_A solver_var;
+	U[1..nc] IS_A solver_var;
+	dx_du[1..nc][1..nc] IS_A solver_var;
+
+	(* system for investigation *)
+	k,x,y,u IS_A solver_var;
+	k*x - y = 7;
+	y = u^2; 
+	(* hence, dx/du = 2*u/k *)
+
+	nc:==1;
+	u,U[1] ARE_THE_SAME;
+	x,X[1] ARE_THE_SAME;
+
+METHODS
+	METHOD values;
+		FOR j IN [1..nc] DO
+			U[j] := j;
+		END FOR;
+	END values;
+
+	METHOD specify;
+		FIX u, k;
+	END specify;
+
+	METHOD on_load;
+		RUN reset;
+		RUN values;
+	END on_load;
+
+	METHOD analyse;
+	  EXTERNAL do_sensitivity(SELF,U[1..nc],X[1..nc],dx_du[1..nc][1..nc]);
+	END analyse;
+
+	METHOD self_test;
+		FOR i IN [1..nc] DO (* X[i] *)
+			FOR j IN [1..nc] DO (* U[j] *)
+				ASSERT abs(dx_du[i][j] - 2*U[j]/k) < 0.00001 * 2 * U[j]/k;
+			END FOR;
+		END FOR;
+	END self_test;
+END sensitivity_test;
+
+MODEL sensitivity_test_all REFINES sensitivity_test;
+	U_new[1..nc] IS_A real;
+	stepsize IS_A real_constant;
+	stepsize :== 0.0001;
+METHODS
+	METHOD analyse;
+		EXTERNAL do_sensitivity_all(SELF,U[1..nc],U_new[1..nc],stepsize);
+	END analyse;
+
+	METHOD self_test;
+		ASSERT 1==0;
+	END self_test;
+END sensitivity_test_all;

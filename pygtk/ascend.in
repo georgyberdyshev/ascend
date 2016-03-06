@@ -1,0 +1,225 @@
+#!@PYTHON@
+# ^ python path substituted here is not depended-upon in Windows
+
+import os, os.path, sys, platform
+
+restart = 0
+
+# This script launches ASCEND, after first ensuring that all necessary 
+# variables are present in the 'environment', and adding them and 
+# restarting the process if necessary. You can override values for these
+# env vars by setting them before this script is run.
+
+# Note that as well as env vars, ASCEND PyGTK is also controllable using the 
+# .ascend.ini file in the user's home directory.
+
+def path_absolute(p):
+	"""utility function for dealing with paths on Mac platform."""
+	if os.path.isabs(p):
+		return p
+	else:
+		return os.path.join(sys.path[0],p)
+
+if platform.system()=="Windows" and sys.executable.endswith("pythonw.exe"):
+	_blackhole = file(os.devnull,"w")
+	sys.stdout = sys.stderr = _blackhole
+
+#-----------------------------------------------------------------------
+# Get locations of the installed files. On windows, these are defined in
+# in the registry. On other systems, these are defined at compile time
+# by @VARNAME@ substitution.
+
+SEP = ":"
+PYTHON="@PYTHON@"
+GTKLIBPATH = None # assume that GTK will be in the standard library path
+
+if platform.system()=="Windows":
+	SEP=";"
+	LDPATHVAR = 'PATH'
+	PYTHON=os.path.join(sys.prefix,"pythonw.exe")
+
+	import _winreg as wreg
+	k = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, "SOFTWARE\ASCEND")
+
+	# on Windows, we should be able to *assume* relative paths...
+
+	# for some reason, QueryValue doesn't work on Py 2.4, need to use QueryValueEx.
+	INSTALL_SOLVERS,t = wreg.QueryValueEx(k,"INSTALL_SOLVERS")
+	INSTALL_MODELS,t = wreg.QueryValueEx(k,"INSTALL_MODELS")
+	INSTALL_LIB,t = wreg.QueryValueEx(k,"INSTALL_LIB")
+	INSTALL_ASCDATA,t = wreg.QueryValueEx(k,"INSTALL_ASCDATA")
+	GTKLIBPATH,t = wreg.QueryValueEx(k,"GTKLIBS");
+	DEFAULT_ASCENDLIBRARY="%s;%s" % (INSTALL_SOLVERS,INSTALL_MODELS)
+	
+	ASCEND_PYTHON = os.path.join(INSTALL_ASCDATA,"python")	
+	PYVERSION = "@PYVERSION@"
+
+elif platform.system()=="Darwin":
+
+	LDPATHVAR = 'DYLD_LIBRARY_PATH'
+
+	GTKLIBPATH=path_absolute("PyGTK.bundle/lib")
+
+	INSTALL_LIB = path_absolute(".")
+	INSTALL_ASCDATA = path_absolute("Resources")
+	INSTALL_MODELS = path_absolute("""@ASC_LIBRARY_REL_DIST@""")
+	INSTALL_SOLVERS = path_absolute("""@ASC_SOLVERS_REL_DIST@""")
+	ASCEND_PYTHON = path_absolute("Python")
+	DEFAULT_ASCENDLIBRARY="%s;%s" % (INSTALL_SOLVERS,INSTALL_MODELS)
+
+	INSTALL_PYGTK = path_absolute("PyGTK.bundle/python")
+	print("Adding %s to python path" % INSTALL_PYGTK)
+	sys.path.insert(0,INSTALL_PYGTK)
+
+else:
+	LDPATHVAR = 'LD_LIBRARY_PATH'
+
+	# FIXME for possible case of relative paths...
+
+	INSTALL_LIB="@INSTALL_LIB@"
+	INSTALL_ASCDATA="@INSTALL_ASCDATA@"
+	INSTALL_MODELS = "@INSTALL_MODELS@"
+	INSTALL_SOLVERS = "@INSTALL_SOLVERS@"
+	ASCEND_PYTHON = "@INSTALL_PYTHON_ASCEND@"
+	DEFAULT_ASCENDLIBRARY="""@DEFAULT_ASCENDLIBRARY@"""
+
+#-----------------------------------------------------------------------
+
+if os.environ.get(LDPATHVAR):
+	LDPATH = os.environ.get(LDPATHVAR).split(SEP)
+else:
+	LDPATH = []
+
+if not os.environ.get('ASC_GDB'):
+	# restarting messes up GDB so don't allow it
+
+	if platform.system()=="Windows":
+		# Put INSTALL_LIB then GTK at start of path
+		if GTKLIBPATH not in LDPATH:
+			restart = 1
+		if INSTALL_LIB not in LDPATH:
+			restart = 1
+		if GTKLIBPATH in LDPATH:
+			LDPATH.remove(GTKLIBPATH)
+		if GTKLIBPATH:
+			LDPATH = [INSTALL_LIB,GTKLIBPATH] + LDPATH
+		else:
+			LDPATH = [INSTALL_LIB] + LDPATH
+		os.environ[LDPATHVAR] = SEP.join(LDPATH)
+	elif INSTALL_LIB != "/usr/lib" and not INSTALL_LIB in LDPATH:
+		# don't worry about GTK location; just ensure that LDPATH includes INSTALL_LIB
+		if GTKLIBPATH:
+			LDPATH = [INSTALL_LIB,GTKLIBPATH] + LDPATH
+		else:
+			LDPATH = [INSTALL_LIB] + LDPATH
+		os.environ[LDPATHVAR] = SEP.join(LDPATH)
+		restart = 1
+
+	if platform.system()=="Darwin":
+		if not 'GTK_PATH' in os.environ:
+			os.environ['XDG_DATA_HOME']=os.path.expanduser('~/.local/share')
+#			os.environ['XDG_CONFIG_HOME']=os.path.expanduser('~/.config')
+#			os.environ['XDG_CACHE_HOME']=os.path.expanduser('~/.cache')
+#			os.environ['XDG_CONFIG_DIRS']='/sw/etc/xdg'
+#			os.environ['XML_CATALOG_FILES']='/sw/etc/xml/catalog'
+			os.environ['XDG_DATA_DIRS']="../PyGTK.bundle/share"
+
+			bundle_res = os.path.normpath(path_absolute("../"))
+			print("BUNDLE_RES =", bundle_res)
+			bundle_etc = os.path.join(bundle_res,"etc")
+			os.environ['GTK_DATA_PREFIX'] = bundle_res
+			os.environ['GTK_EXE_PREFIX'] = bundle_res
+			os.environ['GTK_PATH'] = bundle_res
+			os.environ['GTK2_RC_FILES'] = os.path.join(bundle_etc,"gtk-2.0/gtkrc")
+			os.environ['GTK_IM_MODULE_FILE']=os.path.join(bundle_etc,"gtk-2.0/gtk.immodules")
+			os.environ['GTK_PIXBUF_MODULE_FILE']=os.path.join(bundle_etc,"gtk-2.0/gdk-pixbuf.loaders")
+			#os.environ['PANGO_RC_FILE']=os.path.join(bundle_etc,"pango/pangorc")
+
+			restart = 1
+
+#		if not 'PWD' in os.environ:
+#			os.environ['PWD']=os.path.dirname(sys.executable)
+#			restart = 1
+#
+#		if not '_' in os.environ:
+#			os.environ['_']=sys.executable
+#			restart = 1
+
+	# if ASCENDLIBRARY has been specified, make sure it's including the Model Library
+	if os.environ.get('ASCENDLIBRARY') or platform.system()=="Darwin":
+		if not 'ASCENDLIBRARY' in os.environ:
+			os.environ['ASCENDLIBRARY'] = ""
+		envmodels = [os.path.abspath(i) for i in os.environ['ASCENDLIBRARY'].split(SEP)]
+		if not INSTALL_MODELS in envmodels:
+			envmodels.append(INSTALL_MODELS)
+			os.environ['ASCENDLIBRARY'] = SEP.join(envmodels)
+			restart = 1
+
+	# if ASCENDSOLVERS has been specified, make sure it includes the standard solvers	
+	if os.environ.get('ASCENDSOLVERS') or platform.system()=="Darwin":
+		if not 'ASCENDSOLVERS' in os.environ:
+			os.environ['ASCENDSOLVERS'] = ""
+		envsolvers = [os.path.abspath(i) for i in os.environ['ASCENDSOLVERS'].split(SEP)]
+		if not INSTALL_SOLVERS in envsolvers:
+			envsolvers.append(INSTALL_SOLVERS)
+			os.environ['ASCENDSOLVERS'] = SEP.join(envsolvers)
+			restart = 1
+
+	# don't need to restart process on Windows as env vars update immediately
+	if restart and platform.system()!="Windows":
+		print("Restarting with corrected environment...")
+		if os.environ.get(LDPATHVAR):
+			print("   %s = %s" % (LDPATHVAR,os.environ.get(LDPATHVAR)))
+		if os.environ.get('ASCENDLIBRARY'):
+			print("   ASCENDLIBRARY = %s" % os.environ.get('ASCENDLIBRARY'))
+		if os.environ.get('ASCENDSOLVERS'):
+			print("   ASCENDSOLVERS = %s" % os.environ.get('ASCENDSOLVERS'))
+		script = os.path.join(sys.path[0],"ascend")
+		print("PYTHON =",PYTHON)
+		print("script =",script)
+		os.execve(PYTHON,[script] + sys.argv, os.environ)
+
+print("Running with...")
+print("   %s = %s" % (LDPATHVAR, os.environ.get(LDPATHVAR)))
+print("   sys.path = %s" % sys.path)
+print("   argv = %s" % sys.argv)
+for e in os.environ:
+	print("   %s = %s" % (e, os.environ[e]))
+
+if os.environ.get('ASCENDLIBRARY'):
+	ASCENDLIBRARY = os.environ.get('ASCENDLIBRARY')
+	print("   ASCENDLIBRARY = %s" % ASCENDLIBRARY)
+
+if os.environ.get('ASCENDSOLVERS'):
+	ASCENDSOLVERS = os.environ.get('ASCENDSOLVERS')
+	print("   ASCENDSOLVERS = %s" % ASCENDLIBRARY)
+
+print("sys.path[0] = %s" % sys.path[0])
+
+if not ASCEND_PYTHON in sys.path:
+	print("Adding ASCEND_PYTHON=%s to python path" % ASCEND_PYTHON)
+	sys.path.append(ASCEND_PYTHON)
+
+if os.environ.get('OSTYPE')=='cygwin':
+	print("CYGWIN...")
+elif os.environ.get('OSTYPE')=='msys':
+	print("MSYS...")
+
+if os.environ.get('ASC_GDB'):
+	args = sys.argv
+	args.pop(0)
+	cmd = ["gdb","--args","python",os.path.join(ASCEND_PYTHON,"gtkbrowser.py")]+args
+	print(cmd)
+	os.execv("/usr/bin/gdb",cmd)
+else:
+	import ascpy
+	olddir = os.getcwd()
+	print("CWD =",olddir)
+	os.chdir(INSTALL_ASCDATA)
+	from gtkbrowser import *
+	os.chdir(olddir)
+	B = Browser(
+		librarypath=os.environ.get('ASCENDLIBRARY')
+		,assetspath=os.path.join(INSTALL_ASCDATA,"glade")
+	)
+	B.run()

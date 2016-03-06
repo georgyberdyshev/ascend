@@ -1,0 +1,126 @@
+ascend (0.9.8-20) lucid; urgency=low
+
+  * Remove hard dependency on GraphViz. We now dlopen the bits that we need.
+
+ -- John Pye (Aug 2010) <john@curioussymbols.com>  Wed, 23 Mar 2011 17:57:00 +1100
+
+ascend (0.9.8-19) lucid; urgency=low
+
+  * Updated to Ubuntu 10.04
+
+ -- John Pye (Aug 2010) <john@curioussymbols.com>  Mon, 16 Aug 2010 23:12:00 +1000
+
+ascend (0.9.8-18) jaunty; urgency=low
+
+  * Updated to version 0.9.8.
+
+ -- John Pye (Aug 08) <john@curioussymbols.com>  Fri, 12 Feb 2010 14:49:00 +1000
+
+ascend (0.9.7-17) jaunty; urgency=low
+
+  * Updated to version 0.9.7.
+
+ -- John Pye (Aug 08) <john@curioussymbols.com>  Tue, 23 Jun 2009 17:43:00 +1000
+
+ascend (0.9.6-16) jaunty; urgency=low
+
+  * Updated to version 0.9.6.
+
+ -- John Pye (Aug 08) <john@curioussymbols.com>  Thu, 30 Sep 2008 18:38:00 +1000
+
+ascend (0.9.5.116-15) hardy; urgency=low
+
+  * Updated to version 0.9.5.116.
+  * Changed packaging of source code tarball (removed debian files again)
+
+ -- John Pye (Aug 08) <john@curioussymbols.com>  Mon, 29 Sep 2008 23:11:00 +1000
+
+ascend (0.9.5.115-14) hardy; urgency=low
+
+  * Updated to version 0.9.5.115
+
+ -- John Pye (Aug 08) <john@curioussymbols.com>  Sat, 16 Aug 2008 16:52:00 +1000
+
+ascend (0.9.5.114-13) unstable; urgency=low
+
+  * Added ASCEND Tcl/Tk to Applications menu
+
+ -- John Pye (roadwork) <john@curioussymbols.com>  Thu, 06 Mar 2008 10:09:00 +1000
+
+ascend (0.9.5.114-12) unstable; urgency=low
+
+  * Uploaded final release code for 0.9.5.114
+  * Add Depends: for python-glade2 and python-numpy and python-matplotlib.
+
+ -- John Pye (roadwork) <john@curioussymbols.com>  Tue, 04 Mar 2008 14:19:00 +1000
+
+ascend (0.9.5.114-10) unstable; urgency=low
+
+  * Uploaded new code, still version 0.9.5.114
+  * Added dep on graphviz-dev
+
+ -- John Pye (roadwork) <john@curioussymbols.com>  Mon, 14 Jan 2008 10:17:00 +1000
+
+ascend (0.9.5.114-9) unstable; urgency=low
+
+  * Update to version 0.9.5.114
+  * Dependency on libtktable2.9 corrected.
+
+ -- John Pye (roadwork) <john@curioussymbols.com>  Thu, 13 Sep 2007 18:04:00 +1000
+
+ascend (0.9.5.114-7) unstable; urgency=low
+
+  * Update to version 0.9.5.114
+  * Fixed MIME association for .a4c, .a4l and .a4s files
+
+ -- John Pye (roadwork) <john@curioussymbols.com>  Thu, 30 Aug 2007 11:39:00 +1000
+
+ascend (0.9.5.113-6) unstable; urgency=low
+
+  * Update to version 0.9.5.113.
+  * Fix problem with linking to help files/web.
+
+ -- John Pye (roadwork) <john@curioussymbols.com>  Fri, 17 Aug 2007 11:47:00 +1000
+
+ascend (0.9.5.112-5) unstable; urgency=low
+
+  * Solvers are now separate shared objects
+  * Work on DOPRI5 and TRON (ongoing)
+  * Addition of ASCENDSOLVERS env var
+  * Fixed support for solver loading in Tcl/Tk GUI.
+
+ -- John Pye (roadwork) <john@curioussymbols.com>  Sun, 01 Jul 2007 01:00:00 +1000
+
+ascend (0.9.5.110-4) unstable; urgency=low
+
+  * Removed runtime requirement for matplotlib, numpy.
+  * Splash screen and bug-reporting link in help menu.
+
+ -- John Pye <john@curioussymbols.com>  Sat, 26 May 2007 14:00:00 +1000
+
+ascend (0.9.5.109-3) unstable; urgency=low
+
+  * Removed some binary files that had crept into the tarball
+
+ -- John Pye <john@curioussymbols.com>  Sun, 06 May 2007 23:00:00 +1000
+
+ascend (0.9.5.109-2) unstable; urgency=low
+
+  * Added debian/compat
+  * Added .desktop and .mime.
+  * Removed file shebangs from python scripts
+
+ -- John Pye <john@curioussymbols.com>  Wed, 25 Apr 2007 22:00:00 +1000
+
+ascend (0.9.5.109-1) unstable; urgency=low
+
+  * Working towards addition to Ubuntu Universe...
+
+ -- John Pye <john@curioussymbols.com>  Wed, 25 Apr 2007 14:34:03 +1000
+
+ascend (0.9.5.108-1) unstable; urgency=low
+
+  * Initial release, package added to sourceforge.net.
+
+ -- John Pye <john@curioussymbols.com>  Sat, 21 Apr 2007 17:02:03 +1000
+

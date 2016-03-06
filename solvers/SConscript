@@ -1,0 +1,11 @@
+Import('env')
+
+subdirs = [
+	'qrslv','conopt','cmslv','lrslv','lsode','ida','ipopt','dopri5','makemps','radau5'
+]
+#'tron',
+
+for d in subdirs:
+	env.SConscript(d+'/SConscript',['env']);
+
+# vim: set syntax=python:

@@ -1,0 +1,66 @@
+REQUIRE "ivpsystem.a4l";
+
+MODEL simple_ok1;
+	y IS_A solver_var;
+	dy_dt IS_A solver_var;
+	t IS_A solver_var;
+	dy_dt = -4 * y;
+METHODS
+METHOD on_load;
+	INDEPENDENT t;
+	DER(dy_dt,y);
+END on_load;
+END simple_ok1;
+
+MODEL simple_ok2;
+	y IS_A solver_var;
+	dy_dt IS_A solver_var;
+	t IS_A solver_var;
+	dy_dt = -4 * y;
+	INDEPENDENT t;
+	DER(dy_dt,y);
+METHODS
+METHOD on_load;
+	(* nothing *)
+END on_load;
+END simple_ok2;
+
+
+(* missing INDEPENDENT *)
+MODEL simple_fail1;
+	y IS_A solver_var;
+	dy_dt IS_A solver_var;
+	t IS_A solver_var;
+	dy_dt = -4 * y;
+METHODS
+METHOD on_load;
+	DER(dy_dt,y);
+END on_load;
+END simple_fail1;
+
+(* derivative of invalid variable *)
+MODEL simple_fail2;
+	y IS_A solver_var;
+	dy_dt IS_A solver_var;
+	t IS_A solver_var;
+	dy_dt = -4 * y;
+METHODS
+	METHOD on_load;
+		INDEPENDENT t;
+		DER(dy_dt,y);
+	END on_load;
+END simple_fail2;
+
+(* derivative wrt independent variable *)
+MODEL simple_fail3;
+	y IS_A solver_var;
+	dy_dt IS_A solver_var;
+	t IS_A solver_var;
+	dy_dt = -4 * y;
+METHODS
+	METHOD on_load;
+		INDEPENDENT t;
+		DER(z, dy_dt);
+	END on_load;
+END simple_fail3;
+

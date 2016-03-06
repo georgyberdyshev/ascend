@@ -1,0 +1,132 @@
+REQUIRE "simpleflowsheet01mass.a4c";
+REQUIRE "guthriecosts.a4l";
+
+(*  simpleflowsheet01cost.a4c
+	by Arthur W. Westerberg
+	
+	ASCEND modelling environment
+	Copyright (C) 1998 Carnegie Mellon University
+	
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*)
+
+ATOM cash_flow REFINES cost_per_time;
+    lower_bound := -1.0e50 {USD/min};
+    nominal     := 1.0 {USD/s};
+END cash_flow;
+
+
+MODEL simpleflowsheet01cost;
+
+	tc						IS_A 	test_controller;
+	cm1,cr1,cfl1			IS_A 	simple_pressure_vessel_cost;
+
+	feed_cost,bleed_value, product_value, annual_profit,
+	annual_investment_cost	IS_A 	cash_flow;
+
+	price[tc.fs.m1.out.components],
+	fuel_price				IS_A	cost_per_mass;
+	payout_time				IS_A	time;
+
+
+	tc.fs.m1.feed[1], tc.fs.m1.out, tc.fs.r1.out, tc.fs.fl1.liq,
+	tc.fs.fl1.vap, tc.fs.sp1.out[1..2]
+							IS_REFINED_TO mod_stream;
+
+
+	cm1.gc.ci, cr1.gc.ci, cfl1.gc.ci ARE_THE_SAME;
+	cm1.vol_flow, tc.fs.m1.out.Vtot_liq	ARE_THE_SAME;
+	cr1.vol_flow, tc.fs.r1.feed.Vtot_liq ARE_THE_SAME;
+
+	cfl1.vol_flow, tc.fs.fl1.feed.Vtot_liq ARE_THE_SAME;
+
+	annual_investment_cost = (cm1.installed_cost + cr1.installed_cost
+	    + cfl1.installed_cost)/payout_time;
+
+	feed_cost = price['B']*tc.fs.m1.feed[1].w['B']
+	    *tc.fs.m1.feed[1].state.yw['B'];
+
+	bleed_value = fuel_price*tc.fs.sp1.out[1].Wtot;
+
+	product_value = price['C']*tc.fs.fl1.liq.w['C']
+	    *tc.fs.fl1.liq.state.yw['C'];
+
+	annual_profit = product_value+bleed_value-feed_cost
+	    -annual_investment_cost;
+
+	MAXIMIZE annual_profit;
+
+METHODS
+
+METHOD default_self;
+END default_self;
+
+METHOD specify;
+	RUN tc.specify;
+	RUN cm1.specify;
+	RUN cr1.specify;
+	RUN cfl1.specify;
+
+	FREE cm1.vol_flow;
+	FREE cr1.vol_flow;
+	FREE cfl1.vol_flow;
+
+	FIX price[tc.fs.m1.out.components];
+	FIX fuel_price;
+	FIX payout_time;
+END specify;
+
+METHOD reset;
+	RUN ClearAll;
+	RUN specify;
+END reset;
+
+METHOD values;
+
+	RUN tc.values;
+
+	payout_time.nominal		:=	2{yr};
+	price['A']				:=	0.15{USD/lbm};
+	price['B']				:=	0.15{USD/lbm};
+	price['C']				:=	0.30{USD/lbm};
+
+	fuel_price				:=	0.1 {USD/lbm};
+	payout_time				:=	3 {yr};
+
+	cm1.gc.ci.MandSindex			:=	990.8;
+	cm1.gc.ci.Fp				:=	1.0;
+	cm1.gc.ci.Fm				:=	1.0;
+
+	cm1.H_to_D				:=	2.0;
+	cm1.liq_holdup_time			:=	10{s};
+	cr1.H_to_D				:=	2.0;
+	cr1.liq_holdup_time			:=	10{s};
+	cfl1.H_to_D				:=	2.0;
+	cfl1.liq_holdup_time			:=	10{s};
+
+END values;
+
+METHOD on_load;
+	RUN default_self;
+	RUN reset;
+	RUN values;
+END on_load;
+
+METHOD self_test;
+	ASSERT abs(annual_investment_cost - 1204344{USD/yr}) < 1 {USD/yr};
+	ASSERT abs(annual_profit - -38963990{USD/yr}) < 1 {USD/yr};
+	ASSERT abs(product_value - 72187780{USD/yr}) < 1 {USD/yr};
+END self_test;
+
+END simpleflowsheet01cost;

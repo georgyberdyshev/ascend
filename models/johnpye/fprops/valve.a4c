@@ -1,0 +1,105 @@
+(*
+ASCEND modelling environment
+Copyright (c) 2011 Carnegie Mellon University
+
+Models for various valves.
+Inspired by code by 'valve.mso' by Estefane Horn and Núbia do Carmo Ferreira
+from the EMSO EML/ALSOC project. http://www.enq.ufrgs.br/alsoc.
+
+Apparent limitations with dimensions in ASCEND mean I have added 
+'valve_coefficient_sq' (the square of a valve coefficient) to 
+models/johnpye/thermo_types.a4c, for use in this model.
+
+Update: to solve the units-of-measurement problem, see http://is.gd/C73iky
+
+See also Appendix 3 "Equations for control valve flow in SI units" from
+P Thomas, 1999, Simulation of Industrial Processes for Control Engineers",
+Butterworth-Heinemann, ISBN 0750641614.
+*)
+
+REQUIRE "johnpye/fprops/rankine_fprops.a4c";
+REQUIRE "johnpye/thermo_types.a4c";
+
+MODEL valve REFINES stream_equipment;
+	NOTES 'description' SELF 
+	{Assumed: steady state, isenthalpic, single-phase (liquid or gas)
+	Assume that we are not in danger of choked flow or cavitation.
+
+	Note that when setting the valve constant, use values like 
+	C_v := 0.25 {VALVE_CONST_US} to specify the value and the required unit and
+	dimension convesion will be correctly made.}
+	END NOTES;
+
+	types IS_A set OF symbol_constant;
+	types :== ['linear','parabolic','equal','quick','hyperbolic'];
+
+	type IS_A symbol_constant;
+
+	Vdot "volumetric flow rate" IS_A volume_rate;
+	C_v "valve coefficient" IS_A valve_coefficient;
+	x "opening fraction" IS_A fraction;
+
+	pr "pressure ratio" IS_A factor;
+	dp IS_A delta_pressure;
+	y "valve response" IS_A fraction;
+	
+	SELECT(type)
+		CASE 'linear':
+			y = x;
+		CASE 'parabolic':
+			y = x^2;
+		CASE 'equal':
+			y = x^2 / sqrt(2. - x^4);
+		CASE 'quick':
+			y = 10.*x / sqrt(1 + 99.* x^2);
+			(* regularised? see http://is.gd/deKZ5j *)
+		CASE 'hyperbolic':
+			y = 0.1*x/sqrt(1 - 0.99*x^2);
+			(* regularised? http://is.gd/deKZ5j *)
+		OTHERWISE:
+			(* assume linear if we are given nonsense *)
+			y = x;
+	END SELECT;
+
+	inlet.p + dp = outlet.p;
+	inlet.h = outlet.h;
+
+	(* pressure ratio *)
+	outlet.p = inlet.p * pr;
+
+	(* FIXME what if dp <= 0, in other words reversed- or no-flow? *)
+	mdot = y * C_v * sqrt(-dp/inlet.v);
+
+	(* volumetric flow rate (should we be using the liquid density instead? *)
+	(* FIXME should we take an average density across the valve? *)
+	Vdot = mdot * inlet.v;
+
+	(* need to add consideration of cavitation and choking... details in 
+	Thomas, sec. 7.4, p. 62. *)
+END valve;
+
+MODEL valve_test REFINES valve;
+	cd.component :== 'water';
+	type :== 'linear';
+METHODS
+METHOD on_load;
+	FIX inlet.p, inlet.T;
+	inlet.p := 30 {bar};
+	inlet.T := 400 {K} + 273.15 {K};
+
+	FIX outlet.p;
+	outlet.p := 10 {bar};
+
+	FIX x;
+	x := 0.5;
+
+	FIX C_v;
+	C_v := 0.25{VALVE_COEFF_US};
+
+	(* first guesses *)
+	inlet.h := 4000 {kJ/kg};
+END on_load;
+END valve_test;
+
+
+

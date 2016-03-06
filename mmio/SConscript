@@ -1,0 +1,15 @@
+Import('env')
+mmio_env = env.Clone()
+
+if env.get('HAVE_STRDUP'):
+	mmio_env.Append(CPPDEFINES=['HAVE_STRDUP'])
+
+srcs = Split("""
+	mmio.c
+""")
+
+mmio = []
+for src in srcs:
+	mmio.append(mmio_env.SharedObject(src))
+
+Return('mmio')

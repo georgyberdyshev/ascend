@@ -1,0 +1,2449 @@
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
+\begin_document
+\begin_header
+\textclass book
+\begin_preamble
+\usepackage[bookmarks,bookmarksnumbered=true]{hyperref}
+\usepackage{lmodern}
+\usepackage{color}
+\definecolor{darkred}{rgb}{0.55,0,0}
+\definecolor{darkgreen}{rgb}{0,0.55,0}
+
+\usepackage{listings}
+
+\lstdefinelanguage{ascend}{
+  morekeywords=[1]{
+     REQUIRE,IMPORT,NOTES,
+     ATOM,MODEL,METHOD,METHODS,
+     UNIVERSAL,CONSTANT,DIMENSION,DEFAULT,
+     END,FOR,CREATE,DO,EXTERNAL,  
+     CONDITIONAL,SATISFIED,WHEN,CASE,OTHERWISE,TRUE,
+     FALSE,SELF,
+  },
+  morekeywords=[2]{
+     REFINES,IS_A,WILL_BE,ALIASES,INPUT,OUTPUT,DATA,
+     FIX,FREE,RUN,ARE_THE_SAME
+  },
+  morekeywords=[3]{
+     solver_var,integer_constant
+  },
+  sensitive=true,
+  morecomment=[s][\color{blue}]{(*}{*)},
+  morestring=[b][\color{darkgreen}]',
+  morestring=[b][\color{darkgreen}]",
+  morecomment=[s][\color{darkgreen}]{\{}{\}},
+}
+
+\lstnewenvironment{ascend}
+  {\lstset{basicstyle=\ttfamily\small, keywordstyle=\color{darkred}}}
+  {}
+
+\lstdefinestyle{ascendlisting}{
+  style=ascendlisting,
+  basicstyle=\small\ttfamily, 
+  numbers=left, 
+  numbersep=5pt, 
+  numberstyle=\tiny, 
+  escapeinside={(*@}{@*)}
+  backgroundcolor=\color{lightgrey} 
+}
+\end_preamble
+\use_default_options false
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_math auto
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize a4paper
+\use_geometry false
+\use_package amsmath 2
+\use_package amssymb 2
+\use_package cancel 1
+\use_package esint 0
+\use_package mathdots 0
+\use_package mathtools 1
+\use_package mhchem 0
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 2
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Chapter
+Preparing a model for reuse
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+reuse
+\end_layout
+
+\end_inset
+
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "cha:model2"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+There are four major ways to prepare a model for reuse.
+ First, you should add comments to a model.
+ Second, you should add methods to a model definition to pass to a future
+ user your experience in creating an instance of this type which is well-posed.
+ Third, you should parameterize the model type definition to alert a future
+ user as to which parts of this model you deem to be the most likely to
+ be shared.
+ And fourth, you should prepare a script that a future user can run to solve
+ a sample problem involving an instance of the model.
+ We shall consider each of these items in turn in what follows.
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+More detail on these is available in papers and reports by Allan, Zaher,
+ Chittur et al 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Allan1997d"
+
+\end_inset
+
+,
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Allan1997b"
+
+\end_inset
+
+,
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Allan1997"
+
+\end_inset
+
+,
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Krishnan1993"
+
+\end_inset
+
+,
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Zaher1991"
+
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Adding comments
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+comments
+\end_layout
+
+\end_inset
+
+ and notes
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+notes
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In ASCEND we can create traditional comments for a model -- i.e., add text
+ to the code that aids anyone looking at the code to understand what is
+ there.
+ We do this by enclosing text with the delimiters 
+\family typewriter
+(*
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+(*
+\end_layout
+
+\end_inset
+
+ and 
+\family typewriter
+*)
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+*)
+\end_layout
+
+\end_inset
+
+.
+ Thus the line
+\end_layout
+
+\begin_layout LyX-Code
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{ascend}
+\end_layout
+
+\begin_layout Plain Layout
+
+(* This is a comment *)
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{ascend}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+is a comment in ASCEND.
+ Traditional comments are only visible when we display the code using the
+ Display code tool
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+Display code tool
+\end_layout
+
+\end_inset
+
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+tool, Display code
+\end_layout
+
+\end_inset
+
+ in the Library window or when we view the code in the text editor we used
+ to create it.
+ 
+\end_layout
+
+\begin_layout Standard
+We suggest we can do more for the modeler with the concept of Notes, a form
+ of "active" comments available in ASCEND.
+ ASCEND has tools to extract notes and display them in searchable form.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+comments, active
+\end_layout
+
+\end_inset
+
+In Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.vesselWithNotes"
+
+\end_inset
+
+
+\noun off
+ we show two types of notes the modeler can add.
+ 
+\series bold
+\noun default
+Longer notes
+\series default
+\noun off
+ are set off in block style starting with the keyword 
+\family sans
+\noun default
+NOTES
+\family default
+\noun off
+ and ending with 
+\family sans
+\noun default
+END NOTES
+\family default
+\noun off
+.
+ In this model, we declare two notes in this manner: (1) to indicate who
+ the author is and (2) to indicate the creation date for this model.
+ Note that the notes are director to documenting 
+\family sans
+\noun default
+SELF
+\family default
+\noun off
+, which is the model itself -- i.e., the vessel model as a whole object.
+ The object one documents can be any instance in the model -- any variable,
+ equation or part.
+ The tools for handling notes can sort on the terms enclosed in single quotes
+ so one could, for example, isolate the author notes for all the models.
+\end_layout
+
+\begin_layout Standard
+Vessel model with 
+\family sans
+NOTES
+\family default
+ added (model 
+\family typewriter
+vesselNotes.a4c
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+vesselNotes.a4c
+\end_layout
+
+\end_inset
+
+)
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:model2.vesselWithNotes"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstset{language=ASCEND}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[firstline=24]{../models/vesselNotes.a4c}
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+A user may use any term desired in the single quotes.
+ We have not decided yet what the better set of terms should be so we do
+ not as yet suggest any.
+ With time we expect the terms used to settle down to just a few that are
+ repeated for all the models in a library.
+\end_layout
+
+\begin_layout Standard
+There are also 
+\series bold
+short notes
+\series default
+ we can attach to every variable in the model.
+ A "one liner
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+notes, one liner
+\end_layout
+
+\end_inset
+
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+one liner
+\end_layout
+
+\end_inset
+
+" in double quotes just following the variable name allows the automatic
+ annotation of variables in reports.
+\end_layout
+
+\begin_layout Standard
+The last few lines of Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.vesselWithNotes"
+
+\end_inset
+
+
+\noun off
+ shows adding 
+\series bold
+\noun default
+separate notes
+\series default
+\noun off
+ we write using 
+\family sans
+\noun default
+ADD NOTES IN
+\family default
+\noun off
+ syntax
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+ADD NOTES IN object
+\end_layout
+
+\end_inset
+
+.
+ This object can appear before or after or in a different file from the
+ object it describes.
+ This style of note writing is useful as it allows another person to add
+ notes to a model without changing the code for a model.
+ Thus it allows several different sets of notes to exist for a single model,
+ with the choice of which to use being up to the person maintaining the
+ model library.
+ Finally, it allows one to eliminate the "clutter" the documentation often
+ adds to the code.
+\end_layout
+
+\begin_layout Section
+Adding methods
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+methods, adding
+\end_layout
+
+\end_inset
+
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+adding methods
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We would next like to pass along our experiences in getting this model to
+ be well-posed -- i.e., we would like to tell future users which variables
+ we decided to fix and which we decided to calculate.
+ We would also like to provide some typical values for the variables we
+ decided to fix.
+ ASCEND allows us to attach any number of methods to a type definition.
+ Methods are procedural code that we can request be run through the interface
+ while browsing a model instance.
+ We shall include methods as described in Table 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "tab:model2.reqdMethods"
+
+\end_inset
+
+
+\noun off
+ to set just the right fixed flags and variable values for an instance of
+ our vessel model to be well-posed.
+\end_layout
+
+\begin_layout Standard
+The system has defaults definitions for all these methods.
+ You already saw that to be true if you went through the process of setting
+ all the fixed flags to FALSE in the previous chapter.
+ In case you did not, load and compile the vesselPlain.a4c model in ASCEND.
+ Export the compiled instance to the Browser.
+ Then in the Browser, under the Edit button, select Run method.
+ You will see a list containing these and other methods we shall be describing
+ shortly.
+ Select specify and hit the OK button.
+ Then look in the Console window.
+ A message similar to the following will appear, with all but the first
+ line being in red to signify you should pay attention to the message: 
+\end_layout
+
+\begin_layout LyX-Code
+Running method specify in v
+\end_layout
+
+\begin_layout LyX-Code
+Found STOP
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+STOP
+\end_layout
+
+\end_inset
+
+ statement in METHOD 
+\end_layout
+
+\begin_layout LyX-Code
+  C:
+\backslash
+PROGRAM FILES
+\backslash
+ASCEND
+\backslash
+ASCEND4
+\backslash
+models
+\backslash
+basemodel.a4l:307
+\end_layout
+
+\begin_layout LyX-Code
+  STOP {Error
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+error
+\end_layout
+
+\end_inset
+
+! Standard method "specify" called but not
+\end_layout
+
+\begin_layout LyX-Code
+  written in MODEL.};
+\end_layout
+
+\begin_layout Standard
+This message is telling you that you have just run the default specify method
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+specify method, default
+\end_layout
+
+\end_inset
+
+.
+ We have to hand-craft every specify method so the default method is not
+ appropriate.
+ This message is alerting us to the fact that we did not yet write a special
+ specify method for this model type.
+\end_layout
+
+\begin_layout Standard
+Try running the ClearAll
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+ClearAll
+\end_layout
+
+\end_inset
+
+ method.
+ The default ClearAll method is always the one you will want so it does
+ not put out a message to alert you that it is the default.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float table
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "tab:model2.reqdMethods"
+
+\end_inset
+
+ Some of the methods
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+methods, required
+\end_layout
+
+\end_inset
+
+ we require for putting a model into an ASCEND library
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="2">
+<features rotate="0" tabularvalignment="middle">
+<column alignment="center" valignment="top" width="1.25in">
+<column alignment="center" valignment="top" width="3.5in">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+ClearAll
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+ClearAll
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+a method to set all the .fixed flags for variables in the type to FALSE.
+ This puts these flags into a known standard state -- i.e., all are FALSE.
+ All models inherit this method from the base model and the need to rewrite
+ it is very, very rare.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+specify
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+specify
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\noun off
+\color none
+a method which assumes all the fixed flags are currently FALSE and which
+ then sets a suitable set of fixed flags to TRUE to make an instance of
+ this type of model well-posed.
+ A well-posed model is one that is square (n equations in n unknowns) and
+ solvable.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+reset
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+reset
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\noun off
+\color none
+a method which first runs the ClearAll method and then the specify method.
+ We include this method because it is very convenient.
+ We only have to run one method to make any simulation well-posed, no matter
+ how its fixed flags are currently set.
+ All models inherit this method from the base model, as with ClearAll .
+ It should only rarely have to be rewritten for a model.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+values
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+values
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\noun off
+\color none
+a method to establish typical values for the variables we have fixed in
+ an application or test model.
+ We may also supply values for some of the variables we will be computing
+ to aid in solving a model instance of this type.
+ These values reflectiveness that we have tested for a simulation of this
+ type and found to work.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To write the 
+\family typewriter
+specify
+\family default
+ and 
+\family typewriter
+values
+\family default
+ methods for our vessel model, we note that we have successfully solved
+ the vessel model in at least two different ways above.
+ Thus both variations are examples of being `well-posed'.
+ We can choose which variation we shall use when creating the 
+\family typewriter
+specify
+\family default
+ method for our vessel type definition.
+ Let us choose the alternative where we fixed 
+\family typewriter
+vessel_volume
+\family default
+, 
+\family typewriter
+H_to_D_ratio
+\family default
+, 
+\family typewriter
+metal_density
+\family default
+ and 
+\family typewriter
+wall_thickness
+\family default
+ and provided them with the values of 
+\family typewriter
+250 ft^3
+\family default
+, 
+\family typewriter
+3
+\family default
+, 
+\family typewriter
+5000 kg/m^3
+\family default
+ and 
+\family typewriter
+5 mm
+\family default
+ respectively to be our `standard' specification.
+ Default methods 
+\family typewriter
+ClearAll
+\family default
+ and 
+\family typewriter
+reset
+\family default
+ are appropriate
+\end_layout
+
+\begin_layout Standard
+As already noted, the purpose of 
+\family typewriter
+ClearAll
+\family default
+ is to set all the variables to 
+\family sans
+FREE
+\family default
+, a well-defined state from which we can start over to set variables 
+\family sans
+FIX
+\family default
+ed as we wish.
+ The method 
+\family typewriter
+reset
+\family default
+ simply runs 
+\family typewriter
+ClearAll
+\family default
+ followed by the 
+\family typewriter
+specify
+\family default
+ method for a model.
+ The default versions for these two methods are generally exactly what one
+ wants so one need not write these.
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.vesselWithMethods"
+
+\end_inset
+
+ 
+\noun off
+illustrates our vessel model with our local versions added for 
+\family typewriter
+\noun default
+specify
+\family default
+\noun off
+ and 
+\family typewriter
+\noun default
+values
+\family default
+\noun off
+.
+ Look only at these for the moment and note that they do what we described
+ above.
+ We show some other methods we shall explain in a moment.
+\end_layout
+
+\begin_layout Standard
+Version of vessel with 
+\family sans
+METHODS
+\family default
+ added (
+\family typewriter
+vesselMethods.a4c
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+vesselMethods.a4c
+\end_layout
+
+\end_inset
+
+)
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:model2.vesselWithMethods"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstset{language=ASCEND}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[firstline=23]{../models/vesselMethods.a4c}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In Table 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "tab:model2.addedReqdMethods"
+
+\end_inset
+
+
+\noun off
+ we describe additional methods we require before we will put a model into
+ one of our libraries.
+ Each of these had two versions, both of which we require.
+ The designation 
+\family typewriter
+\noun default
+_self
+\family default
+\noun off
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+self
+\end_layout
+
+\end_inset
+
+ is for a method to do something for all the variables and/or parts we have
+ defined locally within the current model with an IS_A statement.
+ The designation 
+\family typewriter
+\noun default
+_all
+\family default
+\noun off
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+all
+\end_layout
+
+\end_inset
+
+ is for a method to do something for parts that are defined within an `outer'
+ model that has an instance of this model as a part.
+ The `outer' model is at a higher scope
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+scope
+\end_layout
+
+\end_inset
+
+.
+ It can share its parts with this model by passing them in as parameters,
+ a topic we cover shortly in 
+\noun default
+Section 
+\noun off
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:model2.parameterizingVessel"
+
+\end_inset
+
+.
+
+\noun default
+ 
+\noun off
+Only the 
+\family typewriter
+\noun default
+_self
+\family default
+\noun off
+ versions of these methods are relevant here and are in 
+\noun default
+Figure 
+\noun off
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.vesselWithMethods"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float table
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Additional methods
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+methods.
+ required
+\end_layout
+
+\end_inset
+
+ required for model in ASCEND libraries
+\begin_inset CommandInset label
+LatexCommand label
+name "tab:model2.addedReqdMethods"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="2">
+<features rotate="0" tabularvalignment="middle">
+<column alignment="center" valignment="top" width="1.25in">
+<column alignment="center" valignment="top" width="3.5in">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+method
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+description
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+default_self
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+default
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+self
+\end_layout
+
+\end_inset
+
+, default_all
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+default
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+all
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell multicolumn="1" alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none" width="3.5in">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\noun off
+\color none
+a method called automatically when any simulation is compiled to provide
+ default values and adjust bounds for any variables which may have unsuitable
+ defaults in their ATOM definitions.
+ Usually the variables selected are those for which the model becomes ill-behave
+d if given poor initial guesses or bounds (e.g., zero).
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+bound_self
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+bound
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+self
+\end_layout
+
+\end_inset
+
+, bound_all
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+bound
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+all
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\noun off
+\color none
+a method to update the .
+ upper_bound and .
+ lower_bound value for each of the variables.
+ ASCEND solvers use these bound values to help solve the model equations.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+scale_self
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+scale
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+self
+\end_layout
+
+\end_inset
+
+, scale_all
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+scale
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+all
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\noun off
+\color none
+a method to update the .
+ nominal value for each of the variables.
+ ASCEND solvers will use these nominal values to rescale the variable to
+ have a value of about one in magnitude to help solve the model equations.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family typewriter
+check_self
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+check
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+self
+\end_layout
+
+\end_inset
+
+, check_all
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+check
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+_
+\end_layout
+
+\end_inset
+
+all
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\noun off
+\color none
+a method to check that the computations make sense.
+ At first this method may be empty, but, with experience, one can add statements
+ that detect answers that appear to be wrong.
+ As ASCEND already does bounds checking, one should not check for going
+ past bounds here.
+ However, there could be a rule of thumb available that suggests one computed
+ variable should be about an order of magnitude larger than another.
+ This check could be done in this method.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The 
+\family typewriter
+bound_self
+\family default
+ and 
+\family typewriter
+scale_self
+\family default
+, methods we have written are both empty.
+ We anticipate no difficulties with variable scaling or bounding for this
+ small model.
+ Larger models can often give difficult problems in solving if the variables
+ in them are not properly scaled and bounded; these issues must be taken
+ very seriously for such models.
+\end_layout
+
+\begin_layout Standard
+We have included the variables that define the geometry of the vessel in
+ 
+\family typewriter
+defaults_self
+\family default
+ method to avoid such things as negative initial values for vessel_volume.
+ The compiler for ASCEND runs this method as soon as the model is compiled
+ into an instance so the variables mentioned here start with their default
+ values.
+\end_layout
+
+\begin_layout Standard
+Exit ASCEND and repeat all the steps above to edit, load and compile this
+ new vessel type definition.
+ Then proceed as follows.
+\end_layout
+
+\begin_layout Itemize
+In the Browser window, examine the values for those variables mentioned
+ in the 
+\family typewriter
+default_self
+\family default
+ method.
+ Note they already have their default values.
+\end_layout
+
+\begin_layout Itemize
+To place the new instance 
+\family typewriter
+v
+\family default
+ in a solvable state, go to the Browser window.
+ Select 
+\series bold
+Run method
+\series default
+ under the Edit menu.
+ Select first the method values and hit OK.
+\end_layout
+
+\begin_layout Itemize
+Repeat the last step but this time select the method reset.
+ 
+\end_layout
+
+\begin_layout Standard
+In the Browser, examine the values for the variables listed in the method
+ values in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.vesselWithMethods"
+
+\end_inset
+
+
+\noun off
+.
+ They should be set to those stated (remember you can alter the units ASCEND
+ uses to report the values by using the tools in the Units window).Also examine
+ the fixed flags for these variables; they should all be TRUE (remember
+ that you can find which variables are fixed all at once by using the By
+ type command under the Find button).
+ 
+\end_layout
+
+\begin_layout Itemize
+Finally export 
+\family typewriter
+v
+\family default
+ to the Solver.
+ The Eligible window should NOT appear; rather that Solver should report
+ the model to be square.
+ 
+\end_layout
+
+\begin_layout Itemize
+Solve by selecting 
+\series bold
+Solve
+\series default
+ under the Execute menu.
+\end_layout
+
+\begin_layout Standard
+The inclusion of methods has made the process of making this model much
+ easier to get well-posed.
+ This approach is the one that works for really large, complex models.
+\end_layout
+
+\begin_layout Section
+Parameterizing the vessel model
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:model2.parameterizingVessel"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Reuse generally implies creating a model which will have as a part an instance
+ of a previously defined type.
+ For example, let us compute metal_mass as a function of the H_to_D_ratio
+ for a vessel for a fixed vessel_volume.
+ We would like to see if there is a value for the H_to_D_ratio for which
+ the metal_mass is minimum for a vessel with a given vessel_volume.
+ We might wonder if metal_mass goes to infinity as this ratio goes either
+ to zero or infinity.
+\end_layout
+
+\begin_layout Subsection
+Creating a parameterized version of vessel
+\end_layout
+
+\begin_layout Standard
+To use instances of our model as parts in another model, we can parameterize
+ it.
+ We use parameterization to tell a future user that the parameters are objects
+ he or she is likely to share among many different parts of a model.
+ We wish to create a table containing different values of 
+\family typewriter
+H_to_D_ratio
+\family default
+ vs.
+ 
+\family typewriter
+metal_mass
+\family default
+.
+ We can accomplish this by computing simultaneously several different vessels
+ having the same 
+\family typewriter
+vessel_volume
+\family default
+, 
+\family typewriter
+wall_thickness
+\family default
+ and 
+\family typewriter
+metal_density
+\family default
+.
+ The objects we want to see and/or share for each instance of a vessel should
+ include, therefore: 
+\family typewriter
+H_to_D_ratio
+\family default
+, 
+\family typewriter
+metal_mass
+\family default
+, 
+\family typewriter
+metal_density
+\family default
+, 
+\family typewriter
+vessel_volume
+\family default
+ and 
+\family typewriter
+wall_thickness
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+The code in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.parameterizedVessel"
+
+\end_inset
+
+
+\noun off
+ indicates the changes we make to the model declaration statement and the
+ statements defining the variables to parameterize our model.
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:model2.parameterizedVessel"
+
+\end_inset
+
+The parameterized version of vessel model (
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+1014608
+\end_layout
+
+\end_inset
+
+vesselParams.a4c)
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstset{language=ASCEND}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[firstline=24]{../models/vesselParams.a4c}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Substitute the statements in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.parameterizedVessel"
+
+\end_inset
+
+
+\noun off
+ for lines 2 through 9 in 
+\noun default
+Figure 
+\noun off
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.vesselWithMethods"
+
+\end_inset
+
+.
+ Save the result in the file vesselParam.a4c.
+\end_layout
+
+\begin_layout Standard
+Note the use of the 
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+1014610
+\end_layout
+
+\end_inset
+
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+1014609
+\end_layout
+
+\end_inset
+
+
+\family typewriter
+WILL_BE
+\family default
+ statement in the parameter list.
+ By declaring that the type of a parameter will be compatible with the types
+ shown, the compiler can tell immediately if a user of this model is passing
+ the wrong type of object when defining an instance of a vessel.
+\end_layout
+
+\begin_layout Subsection
+Using the parameterized vessel model
+\end_layout
+
+\begin_layout Standard
+A type definition  will set up our 
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+1014611
+\end_layout
+
+\end_inset
+
+table of H_to_D_ratio values vs.
+ metal_mass so we can observe approximately where it attains a minimum value.
+ ASCEND allows us to create arrays of instances of any type.
+ Here we shall create an array of vessels.
+ The type definition is shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.tabulatedVessel"
+
+\end_inset
+
+
+\noun off
+.
+ Note that the line numbers are not a part of the actual code.
+ We include them here only so we can reference them as needed later.
+\end_layout
+
+\begin_layout Standard
+tabulated_vessel_values model
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:model2.tabulatedVessel"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstset{language=ASCEND}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[firstline=26]{../models/vesselTabulated.a4c}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Add this model to the end of the file 
+\family typewriter
+vesselParam.a4c
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+vesselTabulated.a4c
+\end_layout
+
+\end_inset
+
+ (after the vessel model) and save the file as 
+\family typewriter
+vesselTabulated.a4c
+\family default
+.
+ Compile an instance of 
+\family typewriter
+tabulated_vessel_values
+\family default
+ (call it 
+\family typewriter
+tvv
+\family default
+), run the values and specify methods for it, and then solve it.
+ You will discover that the tenth element of the 
+\family typewriter
+metal_mass
+\family default
+ array, corresponding to an 
+\family typewriter
+H_to_D_ratio
+\family default
+ of 1 has the minimum value of 510.257 kilograms.
+\end_layout
+
+\begin_layout Section
+Creating a script
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+script, creating
+\end_layout
+
+\end_inset
+
+ to demonstrate this model
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:model2.creatingScript"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The last step to make the model reusable is to create a script that anyone
+ can easily run.
+ Running the model successfully will allow a user to demonstrate the use
+ of the model and to explore an instance it by browsing it.
+\end_layout
+
+\begin_layout Standard
+ASCEND allows one to create such a script using either an editor or the
+ tools in the 
+\series bold
+Script
+\series default
+ window.
+\end_layout
+
+\begin_layout Standard
+Restart the ASCEND system.
+ You will have three windows open plus the large one which disappears by
+ itself in a few seconds: the 
+\series bold
+Script
+\series default
+, the 
+\series bold
+Library
+\series default
+ and the 
+\series bold
+Console
+\series default
+ windows.
+\end_layout
+
+\begin_layout Standard
+In the 
+\series bold
+Script
+\series default
+ window you will see the license agreement information for ASCEND.
+ First clear the license agreement
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+license agreement
+\end_layout
+
+\end_inset
+
+ from this window by doing the following two steps:
+\end_layout
+
+\begin_layout Itemize
+Click 
+\series bold
+Select all
+\series default
+ under the Edit menu.
+ 
+\end_layout
+
+\begin_layout Itemize
+Then click 
+\series bold
+Delete statements
+\series default
+ under the same button.
+ 
+\end_layout
+
+\begin_layout Standard
+With the 
+\series bold
+Script
+\series default
+ window now cleared of text, select 
+\series bold
+Record actions
+\series default
+ under the Edit menu to start recording the steps you are about to undertake.
+ Then,
+\end_layout
+
+\begin_layout Itemize
+In the 
+\series bold
+Library
+\series default
+ window, under the Edit menu, select 
+\series bold
+Delete all types
+\series default
+.
+ Hit 
+\series bold
+Delete all
+\series default
+ on the small window that appears.
+\end_layout
+
+\begin_layout Itemize
+Load the file 
+\family typewriter
+vesselTabulated.a4c
+\family default
+, the file containing the model called 
+\family typewriter
+tabulated_vessel_values
+\family default
+.
+ Do this by selecting the Read types from file tool under the File menu
+ and browsing the file system to find it.
+ If you have trouble finding it, be sure to set the 
+\series bold
+Files of type
+\series default
+ dropdown at the bottom of the file browsing window to allow all types of
+ files to be seen.
+\end_layout
+
+\begin_layout Itemize
+Select the type 
+\family typewriter
+tabulated_vessel_value
+\family default
+s in the right 
+\series bold
+Library
+\series default
+ window and compile an instance of it by selecting 
+\series bold
+Create simulation
+\series default
+ under the Edit menu.
+ In the small window that appears, enter the name 
+\family typewriter
+tvv
+\family default
+ and hit OK.
+\end_layout
+
+\begin_layout Itemize
+Export the instance to the 
+\series bold
+Browser
+\series default
+ by selecting 
+\series bold
+Simulation to Browser
+\series default
+ under the Export menu.
+\end_layout
+
+\begin_layout Itemize
+Initialize the variable values by running the 
+\family typewriter
+values
+\family default
+ method.
+ Do this by selecting 
+\series bold
+Run method
+\series default
+ under the Edit menu.
+ Select the 
+\family typewriter
+values
+\family default
+ method and hit 
+\series bold
+OK
+\series default
+.
+\end_layout
+
+\begin_layout Itemize
+Set the 
+\family typewriter
+fixed
+\family default
+ flags to get a well-posed problem by repeating the last step but this time
+ select the 
+\family typewriter
+reset
+\family default
+ method.
+\end_layout
+
+\begin_layout Itemize
+Export the instance 
+\family typewriter
+tvv
+\family default
+ to the Solver by selecting 
+\series bold
+to Solver
+\series default
+ under the Export menu.
+\end_layout
+
+\begin_layout Itemize
+Solve 
+\family typewriter
+tvv
+\family default
+ by selecting 
+\series bold
+Solve
+\series default
+ under the Execute menu in the 
+\series bold
+Solver
+\series default
+ window.
+\end_layout
+
+\begin_layout Itemize
+Return to the 
+\series bold
+Script
+\series default
+ window and turn off the recording by deselecting the 
+\series bold
+Record actions
+\series default
+ option under the Edit menu.
+\end_layout
+
+\begin_layout Itemize
+Save the script you have just created by selecting 
+\series bold
+Save
+\series default
+ under the File menu of the 
+\series bold
+Script
+\series default
+ window.
+ Name the file 
+\family typewriter
+vesselTabulated.a4s
+\family default
+ (note the 's' ending) to indicate it is a script file corresponding to
+ the model file 
+\family typewriter
+vesselTabulated.a4c
+\family default
+ (note the 'c' ending) file.
+\end_layout
+
+\begin_layout Itemize
+Exit by selecting 
+\series bold
+Exit ASCEND
+\series default
+ under the File menu on the 
+\series bold
+Script
+\series default
+ window.
+ The contents of the 
+\series bold
+Script
+\series default
+ window at this point will be similar to that in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:model2.scriptVesselTabulated"
+
+\end_inset
+
+
+\noun off
+ (although the path to the file may differ).
+\end_layout
+
+\begin_layout Itemize
+Restart ASCEND.
+\end_layout
+
+\begin_layout Itemize
+Open the script you just created by selecting 
+\series bold
+Read file
+\series default
+ under the File menu on the 
+\series bold
+Script
+\series default
+ window.
+ (Be sure you are allowing the system to see files with the ending 
+\family typewriter
+.a4s
+\family default
+ by using the 
+\series bold
+Files of type
+\series default
+ dropdown at the bottom of the file-browsing window.)
+\end_layout
+
+\begin_layout Itemize
+Highlight all the instructions in this script and then execute the highlighted
+ instructions by selecting 
+\series bold
+Statements selected
+\series default
+ under the 
+\series bold
+Execute
+\series default
+ menu.
+\end_layout
+
+\begin_layout Standard
+You will run the same sequence of instructions you ran to create the script.
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:model2.scriptVesselTabulated"
+
+\end_inset
+
+Script to run 
+\family typewriter
+vesselTabulated.a4c
+\family default
+ (this is the contents of the file 
+\family typewriter
+vesselTabulated.a4s
+\family default
+
+\begin_inset Index idx
+status collapsed
+
+\begin_layout Plain Layout
+vesselTabultated.a4s
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[firstline=29]{../models/vesselTabulated.a4s}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Discussion
+\end_layout
+
+\begin_layout Standard
+In this chapter we converted the vessel model into a form where you and
+ others in the future will have a chance to reuse it.
+ We did this by first adding methods to make the problem well-posed and
+ to provide values for the fixed variables for which we readily found a
+ solution when playing with our original model as we did in the previous
+ chapter.
+ We then thought of a typical use for this model and developed a parameterized
+ version based on that use.
+ If this model were in a library, a future user of it would most often simply
+ have to understand the parameters to create an instance of this type of
+ model.
+ We next added 
+\family typewriter
+NOTES
+\family default
+, a form of active comments, to the model.
+ We suggest that notes are much more useful than comments as we can provide
+ tools that can extract them and allow us to search them, for example, to
+ find a model with a given functionality.
+ Finally, we showed you how to create a script by turning on a "phone" session
+ where ASCEND records the actions one takes when loading, compiling and
+ solving a model.
+ One can save and play this script in the future to see a typical use of
+ the model.
+\end_layout
+
+\begin_layout Standard
+In the next chapter, we look at how we can plot the results we created in
+ the model 
+\family typewriter
+vesselTabulated.a4c
+\family default
+.
+ We will have to reuse a model someone else has put into the library of
+ available models.
+ In other words, the "shoe is on the other foot," and we quickly experience
+ the difficulties with reuse first hand.
+ We will also learn how to run a case study from which we can extract the
+ same information with a single vessel model run multiple times.
+\end_layout
+
+\end_body
+\end_document

@@ -1,0 +1,486 @@
+(*	ASCEND modelling environment
+	Copyright (C) 2011 Carnegie Mellon University
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+	
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*)(*
+	Calculations of isentropic shocks in air flow, following approach given
+	in Potter & Wiggert, 3rd SI edition.
+
+	Intention is to be able to generalise these models for arbitrary fluids as
+	supported by FPROPS. But the present models include ideal gas and constant
+	specific heat assumptions.
+
+	Author: John Pye
+*)
+
+REQUIRE "johnpye/thermo_types.a4c";
+
+MODEL fluid;
+	component IS_A symbol_constant;
+	(* TODO, generalise for different fluid property correlations, selectable *)
+END fluid;
+
+(* XXX how to get hold of the fluid property constants... do we need them?? *)
+
+(*
+	Ideal gas flow node, with ideal gas law, Mach number and speed of sound
+	included. No allowance for enthalpy, entropy at this stage.
+*)
+MODEL ideal_gas_node;
+	cd IS_A fluid;
+	M "Mach number" IS_A positive_factor;
+	p IS_A pressure;
+	T IS_A temperature;
+	v IS_A specific_volume;
+	rho IS_A mass_density;
+	Vel IS_A speed;
+
+	MM IS_A molar_weight_constant;
+	R IS_A specific_gas_constant;
+	R :== 1{GAS_C}/MM;
+
+	rho*v = 1;
+	p*v = R * T;
+
+	k "adiabatic index" IS_A real_constant;
+
+	c IS_A speed;
+	c = sqrt(k*R*T);
+
+	M = Vel / c;
+END ideal_gas_node;
+
+
+(*
+	Add cross-sectional area to the above model; not needed for normal shock
+	calculations, but useful in nozzle calcs.
+*)
+MODEL ideal_gas_duct_node;
+	(* we incorporate state as submodel so we can ARE_THE_SAME non-duct nodes *)
+	state IS_A ideal_gas_node;
+	M ALIASES state.M;
+	p ALIASES state.p;
+	T ALIASES state.T;
+	v ALIASES state.v;
+	rho ALIASES state.rho;
+	Vel ALIASES state.Vel;
+	MM ALIASES state.MM;
+	R ALIASES state.R;
+	k ALIASES state.k;
+	c ALIASES state.c;
+
+	A IS_A area;
+	mdot IS_A mass_rate;
+	mdoteq: mdot = rho * A * Vel;
+END ideal_gas_duct_node;
+
+
+(* Specific cases for air...*)
+
+MODEL air_node REFINES ideal_gas_node;
+	MM :== 28.97 {kg/kmol};
+	k :== 1.4;
+END air_node;
+
+MODEL air_duct_node REFINES ideal_gas_duct_node;
+	MM :== 28.97 {kg/kmol};
+	k :== 1.4;
+END air_duct_node;
+
+(*----------------------------STAGNATION CONDITIONS---------------------------*)
+
+
+MODEL isentropic_stagnation;
+	flow IS_A air_duct_node;
+	stag IS_A air_node;
+
+	(* conservation of mass *)
+	novel: stag.Vel = 0;
+	mdot ALIASES flow.mdot;
+	k ALIASES flow.k;
+
+	(* conservation of energy *)
+	conen: 1 = T_rel_0 * (1 + (k-1)/2 * flow.M^2);
+
+	(* isentropic *)
+	isen:  (1 + (k-1)/2*flow.M^2)^(k/(k-1)) * p_rel_0 = 1;
+	(*(1 + (k-1)/2 * flow.M^2 ) * flow.p^((k-1)/k) = stag.p^((k-1)/k);*)
+	(*(stag.rho / flow.rho)^(k-1) = 1 + (k-1)/2*flow.M^2;*)
+
+	p_rel_0 IS_A positive_factor;
+	T_rel_0 IS_A positive_factor;
+	A_rel_star IS_A positive_factor;
+	A_star IS_A area;
+	p_0 ALIASES stag.p;
+	p ALIASES flow.p;
+	T ALIASES flow.T;
+	T_0 ALIASES stag.T;
+	A ALIASES flow.A;
+	M ALIASES flow.M;
+
+	preleq:  p_rel_0 * stag.p = flow.p;
+	Treleq:  T_rel_0 * stag.T = flow.T;
+	Areleq:  A_rel_star * A_star = flow.A;
+
+	arat:  A_rel_star * flow.M = ((2 + (k-1)*M^2)/(k+1))^((k+1)/(2*(k-1)));
+
+END isentropic_stagnation;
+
+MODEL isentropic_stagnation_test REFINES isentropic_stagnation;
+METHODS
+METHOD on_load;
+	FIX stag.p, stag.T, flow.A;
+	stag.p := 500 {kPa};
+	stag.T := 20 {K} + 273.15 {K};
+	flow.A := 10 {cm^2};
+
+	FIX M;
+	M := 0.80;
+END on_load;
+END isentropic_stagnation_test;
+
+(*------------------------------EXAMPLE MODELS -------------------------------*)
+
+(*
+	Flow from reservoir at 20°C, 500 kPa to receiver at 200 and 300 kPa.
+	Potter & Wiggert 3rd SI Edition, Example 9.2.
+
+	We assume the flow is through a converging-only nozzle from the reservoir 
+	into the receiver. As such, either the entire flow is subsonic, or else
+	there will be choked flow with M = 1 in the exit of the nozzle.
+
+	'crit' uses upstream conditions to determine the reservoir pressure that
+	will give M = 1 at the exit. Then, in part (a), the receiver pressure is
+	higher than that critical pressure, so subsonic flow occurs. For (b), the
+	pressure is lower, so choked flow occurs, with flow rate limited by the
+	M_exit = 1 choked-flow limit.
+
+	Tested, works OK -- JP
+*)
+MODEL example_potter_wiggert_ex_9_2;
+	crit, part_a, part_b IS_A isentropic_stagnation;
+	crit.A, part_a.A, part_b.A ARE_THE_SAME;
+	crit.T_0, part_a.T_0, part_b.T_0 ARE_THE_SAME;
+	A ALIASES crit.A;
+	T_0 ALIASES crit.T_0;
+METHODS
+METHOD on_load;
+	FIX A; A := 10 {cm^2};
+	FIX T_0; T_0 := 20 {K} + 273.15 {K};
+
+	FIX crit.M; crit.M := 1;
+	FIX crit.p_0; crit.p_0 := 500 {kPa};
+
+	FIX part_a.p_0; part_a.p_0 := 500 {kPa};
+	FIX part_a.p; part_a.p := 300 {kPa};
+
+	(* actually, part (b) ends up being identical to 'crit'! *)
+	FIX part_b.p_0; part_b.p_0 := 500 {kPa};
+	FIX part_b.M; part_b.M := 1;
+END on_load;
+END example_potter_wiggert_ex_9_2;
+
+
+(*
+	Potter & Wiggert 3rd SI ed, Example 9.3.
+	Converging-diverging nozzle with exit 40 cm² and throat 10 cm², with flow
+	coming from reservoir at 20 °C, 500 kPa. Two different exit pressures can
+	result in M = 1 at the throat -- we calculate what those pressure are.
+
+	For this problem, saturation states are the upstream reservoir, and we
+	assert that A_star is the throat area and A is the exit area. These areas
+	then yield the Mach number from eq 9.3.19 (iteratively). We find the two
+	solutions by having two instances of the 'isentropic_stagnation' model, and
+	impose upper and lower bounds on M in each of the two models.
+
+	Tested, works OK -- JP
+*)
+MODEL example_potter_wiggert_ex_9_3;
+	sub, sup IS_A isentropic_stagnation;
+	sub.A_star, sup.A_star ARE_THE_SAME;
+	A_star ALIASES sub.A_star;
+	sub.A, sup.A ARE_THE_SAME;
+	A ALIASES sub.A;
+	sub.p_0, sup.p_0 ARE_THE_SAME;
+	p_0 ALIASES sub.p_0;
+	sub.T_0, sup.T_0 ARE_THE_SAME;
+	T_0 ALIASES sub.T_0;
+METHODS
+METHOD on_load;
+	FIX A, A_star;
+	A_star := 10 {cm^2};
+	A := 40 {cm^2};
+
+	(* ensure two different solution regions *)
+	sub.M.upper_bound := 1;
+	sup.M.lower_bound := 1;
+
+	FIX T_0, p_0;
+	T_0 := 20 {K} +  273.15 {K};
+	p_0 := 500 {kPa};
+END on_load;
+END example_potter_wiggert_ex_9_3;
+
+(*-----------------------NORMAL SHOCK IN ISENTROPIC FLOW----------------------*)
+
+(*
+	Model of a stationary normal shock in air. Using a moving frame of
+	reference, it can be used to model a moving shock wave as well.
+
+	Equations from Potter & Wiggert, 3rd SI edition, sects 9.1, 9.2 and 9.4.
+*)
+MODEL air_normal_shock;
+	S1, S2 IS_A air_node;
+	k ALIASES S1.k;
+	
+	S2.M^2 = ( S1.M^2 + 2/(k-1) ) / (2*k/(k-1)*S1.M^2 - 1);
+
+	S2.p / S1.p = 2*k/(k+1)*S1.M^2 - (k-1)/(k+1);
+
+	S2.T / S1.T = ( 1 + (k-1)/2*S1.M^2) * (2*k/(k-1)*S1.M^2 - 1)/ ((k+1)^2/2/(k-1)*S1.M^2);
+END air_normal_shock;
+
+MODEL air_duct_normal_shock;
+	S1, S2 IS_A air_duct_node;
+	shock IS_A air_normal_shock;
+	S1.state, shock.S1 ARE_THE_SAME;
+	S2.state, shock.S2 ARE_THE_SAME;
+	S1.A, S2.A ARE_THE_SAME;
+END air_duct_normal_shock;
+
+(*------------------------------EXAMPLE MODELS -------------------------------*)
+
+(*
+	This model reproduces the results of Example 9.5 from Potter & Wiggert, 
+	3rd SI edition. The question asks to determine the pressure and temperature 
+	conditions downstream of a shock wave passing through ambient air of given
+	state.
+
+	Tested, works OK -- JP
+*)
+MODEL example_potter_wiggert_ex_9_5 REFINES air_normal_shock;
+METHODS
+METHOD on_load;
+	FIX S1.Vel, S1.p, S1.T;
+	S1.Vel := 450 {m/s};
+	S1.p := 80 {kPa};
+	S1.T := 15 {K} + 273.15 {K};
+END on_load;
+END example_potter_wiggert_ex_9_5;
+
+(*
+	This model reproduces the results of Example 9.6 from Potter & Wiggert, 
+	3rd SI edition. This problem shows the wind speeds implicit behind a strong
+	shock wave such as that arising from a high-powered bomb explosions.
+
+	Although the problem as given in P&W can be solved even without doing so,
+	we have added an assumption that the ambient air pressure is 101.3 kPa. This
+	allows the model to be 'square' and the pressure and temperature behind the
+	shock wave (4.83 bar, 500 K) to also be calculated.
+
+	Tested, works OK -- JP
+*)
+MODEL example_potter_wiggert_ex_9_6 REFINES air_normal_shock;
+	Vel_induced IS_A speed;
+	Vel_induced = S2.Vel - S1.Vel;
+METHODS
+METHOD on_load;
+	FIX S1.Vel, S1.T, S1.p;
+	S1.Vel := 700 {m/s};
+	S1.T := 15 {K} + 273.15 {K};
+	S1.p := 101.3 {kPa};
+END on_load;
+END example_potter_wiggert_ex_9_6;
+
+
+(*
+	This model reproduces the results of Example 9.7 from Potter & Wiggert,
+	3rd SI edition. The problem relates to the calculation of outlet conditions 
+	and flow rate for a converging-diverging nozzle, given specified upstream
+	reservoir pressure and temperature, given the throat and exit areas, and
+	subject to the fact that there is a normal shock at the nozzle's exit plane.
+
+	For a shock to exist at the exit, we know that we must have M = 1 at the
+	throat, so A* = A_t.
+
+	Tested, works OK -- JP
+*)
+MODEL example_potter_wiggert_ex_9_7; 
+	noz IS_A isentropic_stagnation;
+	A_star ALIASES noz.A_star;
+	A ALIASES noz.A;
+
+	D_star, D IS_A distance;
+	0.25{PI}*D_star^2 = A_star;
+	0.25{PI}*D^2 = A;
+
+	p_0 ALIASES noz.p_0;
+	T_0 ALIASES noz.T_0;
+
+	shock IS_A air_duct_normal_shock;
+	shock.S1, noz.flow ARE_THE_SAME;
+
+	rec IS_A isentropic_stagnation;
+	rec.flow, shock.S2 ARE_THE_SAME;
+
+	p_2 ALIASES rec.p;
+	mdot ALIASES noz.mdot;
+
+METHODS
+METHOD on_load;
+	(* nozzle geometry *)
+	FIX D_star, D;
+	D_star := 5 {cm};
+	D := 10 {cm};
+
+	(* note that isentropic flow equations have to be bounded over a reasonable
+	range for the Brent	algorithm to converge in this case. Note that P&W Table
+	D.1 gives M up to 10 only, so limiting to 100 is still more generous.
+	FIXME Perhaps we can make these models more user-friendly by having a
+	supersonic and subsonic model that sets these bounds automatically...? *)
+	noz.flow.M.lower_bound := 1;
+	noz.flow.M.upper_bound := 100;
+
+	(* reservoir conditions *)
+	FIX p_0, T_0;
+	p_0 := 90 {kPa};
+	T_0 := 20 {K} + 273.15 {K};
+END on_load;
+METHOD self_test;
+	(* values from P&W *)
+	ASSERT abs(p_2 - 26.6 {kPa}) < 0.05 {kPa};
+	ASSERT abs(mdot - 0.417 {kg/s}) < 0.0005 {kg/s};
+END self_test;
+END example_potter_wiggert_ex_9_7;
+
+(*
+	Example 9.8 from Potter & Wiggert 3rd SI ed.
+	We have a converging-diverging nozzle with throat 5 cm dia and outlet 10 cm
+	dia. A normal shock is established where the nozzle is 7.5 cm dia. The
+	reservoir is at 200 kPa and 20 °C. We have to calculate the pressure of
+	the receiver that will cause this shock location, and also the pressure at
+	the nozzle exit plane.
+
+	Tested, works OK -- JP
+
+	FIXME this model shows a limitation with repeated use of the 	
+	isentropic_stagnation model. That model contains a stag.Vel = 0 equation
+	which causes structural singularity if multiple stagnation models are
+	coupled to the same stagnation state.
+
+	FIXME another interesting issue with this model was that the isentropic
+	flow equations between the normal shock and the receiver were difficult
+	to calculate using the isentropic_stagnation model in current form. While we
+	would naturally have written
+		exit.mdot, rec.mdot ARE_THE_SAME;
+	we found that that did not solve well, and instead the following worked much
+	better:
+		exit.A_star, rec.A_star ARE_THE_SAME;
+	Maybe we need a simpler model for an isentropic flow segment that does not
+	incorporate the stagnation state...?
+*)
+MODEL example_potter_wiggert_ex_9_8;
+	noz IS_A isentropic_stagnation;
+	A_star ALIASES noz.A_star;
+	A ALIASES noz.A;
+
+	D_star, D, D_exit IS_A distance;
+	0.25{PI}*D_star^2 = A_star;
+	0.25{PI}*D^2 = A;
+
+	p_0 ALIASES noz.p_0;
+	T_0 ALIASES noz.T_0;
+
+	shock IS_A air_duct_normal_shock;
+	shock.S1, noz.flow ARE_THE_SAME;
+
+	rec IS_A isentropic_stagnation;
+	rec.flow, shock.S2 ARE_THE_SAME;
+
+	exit IS_A isentropic_stagnation;
+	exit.stag, rec.stag ARE_THE_SAME;
+	A_exit ALIASES exit.A;
+	0.25{PI}*D_exit^2 = A_exit;
+	exit.A_star, rec.A_star ARE_THE_SAME;
+
+	p_exit ALIASES exit.flow.p;
+	p_rec ALIASES rec.stag.p;
+METHODS
+METHOD on_load;
+	FIX D_star, D, D_exit;
+	D_star := 5 {cm};
+	D := 7.5 {cm};
+	D_exit := 10 {cm};
+
+	(* reservoir conditions *)
+	FIX p_0, T_0;
+	p_0 := 200 {kPa};
+	T_0 := 20 {K} + 273.15 {K};
+
+	noz.flow.M.lower_bound := 1;
+	noz.flow.M.upper_bound := 100;
+
+	exit.novel.included := FALSE;
+
+	exit.flow.M.lower_bound := 0;
+	exit.flow.M.upper_bound := 1;
+END on_load;
+METHOD self_test;
+	ASSERT abs(p_exit - 109 {kPa}) < 0.5 {kPa};
+	ASSERT abs(p_rec - 114 {kPa}) < 0.5 {kPa};
+	ASSERT abs(exit.M - 0.265) < 0.001;
+	ASSERT abs(exit.A_rel_star - 2.284) < 0.0005;
+	ASSERT abs(shock.S2.M - 0.531) < 0.0005;
+END self_test;
+END example_potter_wiggert_ex_9_8;
+
+
+(*
+	This model is solves Example 9.9 from Potter & Wiggert 3rd SI ed. The
+	problem relates to the performance of a Pitot tube placed in a 
+	supersonic flow stream. Given the flow pressure as well as the pitot-tube
+	stagnation pressure, we must determine the free-stream flow velocity. We
+	are also given the temperature at the stagnation point.
+
+	Tested, works OK -- JP
+*)
+MODEL example_potter_wiggert_ex_9_9;
+	free ALIASES shock.S1;
+	shock IS_A air_normal_shock;
+	pitot IS_A isentropic_stagnation;
+	shock.S2, pitot.flow.state ARE_THE_SAME;
+	stag ALIASES pitot.stag;
+	Vel ALIASES free.Vel;
+	p ALIASES free.p;
+	p_0 ALIASES stag.p;
+	T_0 ALIASES stag.T;
+	T ALIASES free.T;
+METHODS
+METHOD on_load;
+	FIX free.p, stag.p, stag.T;
+	free.p := 75 {kPa};
+	stag.p := 300 {kPa};
+	stag.T := 150 {K} + 273.15 {K};
+
+	(* arbitrarily fix the pitot area to make problem square *)
+	FIX pitot.A;
+	pitot.A := 1 {m^2};
+END on_load;
+METHOD self_test;
+	ASSERT abs(free.M - 1.65) < 0.005;
+	ASSERT abs(free.T - 274 {K}) < 0.5 {K};
+	ASSERT abs(free.Vel - 547 {m/s}) < 0.5 {m/s};
+END self_test;
+END example_potter_wiggert_ex_9_9;
+

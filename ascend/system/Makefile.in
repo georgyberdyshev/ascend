@@ -1,0 +1,77 @@
+#  ASCEND Solver Makefile
+#  Ben Allan
+#  January 4, 1994
+
+
+SHELL = /bin/sh
+builddir = ..
+srcdir = @fullpathsrcdir@/../generic/system
+VPATH := @fullpathsrcdir@/../generic/system
+
+
+
+#  The next variables are the primary executables and/or libraries that
+#  this makefile is responsible for, and the default target of this
+#  makefile.
+
+EXECUTABLE = 
+
+LIBRARY = libascsystem.a
+
+
+default: $(LIBRARY)
+
+
+
+#  Defines and Includes that are specific to this directory
+
+DIR_SPECIFIC_DEFS = $(SOLVER_DEFS)
+DIR_SPECIFIC_INCS = 
+
+
+
+#  The next variables list the source files (EXEC_SCRS) to compile
+#  into the object files (EXEC_OBJS) that are linked with the
+#  library files (EXEC_LIBS) to make EXECUTABLE
+
+EXEC_SRCS = 
+
+EXEC_OBJS = 
+
+EXEC_LIBS = 
+
+#  The next variables list the source files (LIB_SCRS) to compile
+#  into the object files (LIB_OBJS) that are combined to make LIBRARY
+
+LIB_OBJS= \
+analyze.o  calc.o         discrete.o  logrelman.o      slv.o           system.o \
+block.o    cond_config.o  graph.o     model_reorder.o  slv_common.o    var.o \
+bnd.o      conditional.o  jacobian.o  rel.o            slv_param.o \
+bndman.o   diffvars.o     logrel.o    relman.o         slv_stdcalls.o
+
+
+
+LIB_SRCS = $(LIB_OBJS:%.c=%.o)
+
+#  The global makefile macros (ConfigAscend) and global rules (Makefile.Rules)
+#  
+include $(builddir)/ConfigAscend
+include $(builddir)/Makefile.Rules
+
+
+
+#  debugging for mtx (typically defined in mtx.c)
+#
+#MTX_DEBUG = 
+#
+#  debugging for minos (typically defined in slv1.c)
+#
+#MINOS_DEBUG = 
+
+
+
+# DO NOT DELETE THIS LINE -- g++dep uses it.
+# DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
+
+
+# IF YOU PUT ANYTHING HERE IT WILL GO AWAY

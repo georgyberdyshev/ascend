@@ -1,0 +1,45 @@
+IMPORT "johnpye/grena/sunpos";
+
+REQUIRE "atoms.a4l";
+
+MODEL location_grena;
+	latitude IS_A angle_constant;
+	longitude IS_A angle_constant;
+	timezone IS_A time_constant;
+END location_grena;
+
+MODEL sunpos_grena;
+	loc IS_A location_grena;
+
+	p IS_A pressure;
+	T IS_A temperature;
+	zenith, azimuth IS_A angle;
+	t_UTC IS_A time;
+	t IS_A time;
+	t = t_UTC + loc.timezone;
+
+	solar: sunpos(
+		t_UTC, p, T : INPUT;
+		zenith, azimuth : OUTPUT;
+		loc : DATA
+	);
+
+	altitude IS_A angle;
+	altitude = 0.5{PI} - zenith;
+
+END sunpos_grena;
+
+
+MODEL sunpos_grena_test REFINES sunpos_grena;
+	loc.latitude :== -35 {deg};
+	loc.longitude :== 149 {deg};
+	loc.timezone :== 10 {h};
+METHODS
+METHOD on_load;
+	FIX p, T, t;
+	p := 1 {atm};
+	T := 20 {K} + 273.15 {K};
+	t := 5 {d};
+END on_load;
+END sunpos_grena_test;
+

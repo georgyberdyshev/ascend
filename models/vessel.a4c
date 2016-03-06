@@ -1,0 +1,109 @@
+(*	ASCEND modelling environment
+	Copyright (C) 1998, 2007 Carnegie Mellon University
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+	
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*)
+REQUIRE "atoms.a4l"; (* => atoms.a4l, measures.a4l, system.a4l, basemodel.a4l *)
+(*
+	by Arthur W Westerberg, Benjamin A Allan and John Pye
+
+	This file contains two model declarations. The first is a 'full-blown'
+	vessel model build by extending the declaration from vesselPlain.a4c. This
+	new model contains a number of initialisation routines that ensure that
+	the model can easily be put into a solvable state. The model also contains
+	a 'values' method that defines the base case for which we are solving.
+
+	The second model in this file is an optimisation problem. Here, we are 
+	REFINING the earlier 'vessel' model with the addition of an objective
+	function (see the 'OPTIMIZE' statement). We can then load the model and
+	optimise it.
+*)
+
+MODEL vessel;
+
+	(* variables *)
+	side_area, end_area	 IS_A area;
+	vessel_vol, wall_vol IS_A volume;
+	wall_thickness, H, D IS_A distance;
+	H_to_D_ratio         IS_A factor;
+	metal_density        IS_A mass_density;
+	metal_mass           IS_A mass;
+
+	(* equations *)
+	FlatEnds:      end_area = 1{PI} * D^2 / 4;
+	Sides:         side_area = 1{PI} * D * H;
+	Cylinder:      vessel_vol = end_area * H;
+	Metal_volume:  (side_area + 2 * end_area) * wall_thickness = wall_vol;
+	HD_definition: D * H_to_D_ratio = H;
+	VesselMass:    metal_mass = metal_density * wall_vol;
+
+METHODS
+    METHOD default;
+		H_to_D_ratio :=	2;
+    END default;
+
+    METHOD specify;
+		FIX vessel_vol;
+		FIX H_to_D_ratio;
+		FIX wall_thickness;
+		FIX metal_density;
+    END specify;
+
+    METHOD values;
+		vessel_vol      := 250 {ft^3};
+		wall_thickness  := 5 {mm};
+		metal_density   := 13000 {kg/m^3};
+    END values;
+
+	METHOD on_load;
+		RUN default_self;
+		RUN reset;
+		RUN values;
+	END on_load;
+END vessel;
+
+
+MODEL vessel_optimize REFINES vessel;
+
+	cost  IS_A monetary_unit;
+	a     IS_A cost_per_volume;
+
+    obj1def: cost = a * wall_thickness * (side_area + 2*(4/1{PI})*end_area);
+
+    obj1: MINIMIZE cost;
+
+METHODS
+    METHOD specify;
+		FIX vessel_vol;
+		FIX wall_thickness;
+		FIX metal_density;
+		FIX a;
+    END specify;
+
+    METHOD values;
+		vessel_vol      :=  250 {ft^3};
+		wall_thickness  :=  5 {mm};
+		metal_density   :=  13000 {kg/m^3};
+
+		(* a is the cost per cubic foot of metal. rather arbitrary. *)
+		a               :=  10 {USD/m^3};
+    END values;
+
+	METHOD on_load;
+		RUN default_self;
+		RUN reset;
+		RUN values;
+	END on_load;
+END vessel_optimize;
+

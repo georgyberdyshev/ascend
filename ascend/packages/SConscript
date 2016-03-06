@@ -1,0 +1,23 @@
+#!/usr/bin/python invoke_using_scons
+# This SConscript builds out static packages -- the ones that
+# don't need to be loaded, becuase they're built in.
+# It would be a good idea to staticly link ALL packages
+# on those platforms that don't support dlopening.
+
+Import('libascend_env')
+
+srcs = Split("""
+
+	sensitivity.c ascFreeAllVars.c bisect.c kvalues.c
+	defaultall.c
+
+""")
+
+objs = []
+for s in srcs:
+	objs += libascend_env.SharedObject(s)
+
+Return('objs')
+
+# vim: set syntax=python:
+

@@ -1,0 +1,39 @@
+#!/usr/bin/python invoke_using_scons
+Import('libascend_env')
+
+csrcs = Split("""
+	densemtx.c
+	linsolqr.c linutils.c
+	mtx_basic.c mtx_linal.c mtx_perms.c mtx_query.c
+	mtx_reorder.c mtx_use_only.c mtx_vector.c
+	mtx_csparse.c
+	ranki.c
+	rankiba2.c
+	ranki2.c
+	plainqr.c
+""")
+
+solver_env = libascend_env.Clone()
+if solver_env.get('WITH_MMIO'):
+	solver_env.Append(CPPPATH=["#/mmio"])
+
+objs = []
+
+for c in csrcs:
+	objs += solver_env.SharedObject(c)
+
+#--------------------
+# INSTALL
+
+import glob
+
+if libascend_env.get('CAN_INSTALL'):
+	installdir = Dir(libascend_env.subst("$INSTALL_ROOT$INSTALL_INCLUDE/ascend/linear"))
+
+	headers = glob.glob("*.h")
+	libascend_env.InstallHeader(installdir,headers)
+
+Return('objs')
+
+# vim: set syntax=python:
+

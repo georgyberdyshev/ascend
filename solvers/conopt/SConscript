@@ -1,0 +1,34 @@
+Import('env')
+
+# To run the test, type
+#     ascend johnpye/conopt/conopt.a4c
+
+if 'CONOPT' in env['WITH_SOLVERS']:
+
+	solver_env = env.Clone()
+
+	solver_env.AppendUnique(
+		LIBS = ['ascend']
+		, LIBPATH = ['#']
+	)
+
+	if env.get('CONOPT_LINKED'):
+		solver_env.AppendUnique(
+			LIBS = env['CONOPT_LIB']
+			, LIBPATH = env['CONOPT_LIBPATH']
+		)
+
+	lib = solver_env.SharedLibrary("conopt",["asc_conopt.c"]
+		,SHLIBSUFFIX = env['EXTLIB_SUFFIX']
+		,SHLIBPREFIX = env['EXTLIB_PREFIX']
+	)
+
+	env.Depends(lib,env['libascend'])
+
+	env['extfns'] += [lib]
+
+	if env.get('CAN_INSTALL'):
+		env.InstallShared(Dir(env.subst("$INSTALL_ROOT$INSTALL_SOLVERS")),lib)
+
+# vim: set syntax=python:
+

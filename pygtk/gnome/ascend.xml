@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="text/x-ascend-model">
+         <comment xml:lang="en">ASCEND file</comment>
+         <glob pattern="*.a4l"/>
+         <glob pattern="*.a4c"/>
+  </mime-type>
+  <mime-type type="text/x-ascend-script">
+         <comment xml:lang="en">ASCEND script</comment>
+         <glob pattern="*.a4s"/>
+  </mime-type>
+</mime-info>
+

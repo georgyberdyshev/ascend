@@ -1,0 +1,34 @@
+#!/usr/bin/python invoke_using_scons
+Import('test_env')
+import platform
+
+# local sources
+srcs = ['test.c','test_ascend_base.c','redirectStdStreams.c','printutil.c','assertimpl.c']
+
+# test cases from the different tested modules
+for dir in test_env['TESTDIRS']:
+	srcs += test_env['TESTSRCS_'+dir.upper()]
+
+
+test_env.Append(
+	LIBS = ['ascend','cunit']
+	, LIBPATH = ['#']
+	, CPPDEFINES = ['-DASC_SHARED']
+)
+
+if test_env.has_key('CUNIT_CPPPATH'):
+	test_env.Append(CPPPATH=test_env['CUNIT_CPPPATH'])
+
+if test_env.has_key('CUNIT_LIBPATH'):
+	test_env.Append(LIBPATH=test_env['CUNIT_LIBPATH'])
+
+testprog = test_env.Program('test',srcs)
+
+test_env.Depends(testprog,"#/ascend/utilities/test")
+
+if platform.system()=="Windows":
+	test_env.Depends(testprog,test_env['libascend'])
+else:
+	test_env.Depends(testprog,"#/libascend.so.1")
+	
+

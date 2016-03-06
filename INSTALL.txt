@@ -1,0 +1,173 @@
+BUILDING AND INSTALLING ASCEND
+
+Thanks for downloading ASCEND! We hope you'll find it straight-
+forward to set up and run ASCEND. If you have any comments on
+your experience with this, we're very keen to hear about that.
+Please check out the up-to-date contact details at:
+https://ascendserver.cheme.cmu.edu/wiki/
+
+There are older versions of this document, which include instructions
+on how to build ASCEND with GNU Autotools. This may or may not work
+with the version you are currently looking at.
+https://ascendserver.cheme.cmu.edu/svn/ascend/code/branches/extfn/INSTALL.txt?view=log
+
+-----
+BUILDING ON LINUX AND WINDOWS
+
+To build ASCEND we recommend using SCons. This is supported
+both on Windows (using the MinGW toolset), Mac OS X and Linux.
+
+ASCEND provides two possible interfaces. The older, more mature
+GUI is based on Tcl/Tk. A newer interface that is more in keeping
+with modern GUI design is implemented using PyGTK, but it is still
+missing some functionality and actively being developed.
+
+Using SCons 0.96.92 or newer, see your build options by typing
+
+  scons -Qh
+
+You can add your build options to a file in this directory
+which you can create, called 'config.py'. Otherwise you can
+specify your build options via the commandline. By default they will
+be recorded in the file 'options.cache', so watch out for that if scons
+seems to not be doing what you expected.
+
+Then to build ASCEND, type
+
+  scons
+
+SCons will tell you what version(s) of ASCEND it is able to build, and then
+proceed to start the build. The PyGTK interface requires Python (which is
+already present if you have SCons!). The Tcl/Tk interface requires that you 
+have Tcl/Tk and TkTable installed on your system.
+
+For updates on this information, and PLATFORM-SPECIFIC INFORMATION, please check
+http://ascendserver.cheme.cmu.edu/wiki/index.php/BuildingAscend
+
+For specific information on building the Python interface and
+setting up the PyGTK GUI, please see
+http://ascendserver.cheme.cmu.edu/wiki/index.php/PythonWrapper
+
+------
+BUILDING ON SOLARIS
+
+Some work has been done on building on Solaris, using Python 2.3. At present
+it's pretty close but not yet stable. If you can help out, let us know.
+
+------
+RUNNING FOR THE FIRST TIME
+
+If you've build ASCEND from source, you don't need to 'install'
+it before you can run it. The main issue with running from the
+source directories is that you need to set various environment
+variables: 
+
+ASCENDLIBRARY
+  Location of the 'models' directory, eg ~/src/ascend-NNN/models
+
+LD_LIBRARY_PATH
+  Must contain the paths to the ascend shared libraries, in
+  particular libascend.so, or for the Tcl/Tk interface, also
+  libascendtcl.so.
+  
+It can often be easier to simply install in your home directory
+as shown below.
+
+------
+ISSUES WITH THE TCL/TK INTERFACE
+
+It can sometimes be a bit challenging to build the Tcl/Tk
+interface. ASCEND can run with Tcl/Tk version 8.4 but it is more stable when
+using Tcl/Tk version 8.3. 
+
+A suggested approach in this case is to download and install the 'ActiveTcl'
+distribution, version 8.3.5, and to install it in ~/activetcl.
+http://downloads.activestate.com/ActiveTcl/Windows/8.3.5/
+
+Then, you should be able to build the Tcl/Tk interface as shown:
+
+  export LD_LIBRARY_PATH=~/activetcl/lib:~/activetcl/lib/Tktable2.8
+  scons TCL=~/activetcl
+
+See also the TCL_LIB and TK_LIB flags (scons -Qh).
+
+------
+INSTALLING ON LINUX
+
+To then install ASCEND, you will need to have write access to the 
+directories INSTALL_* as specified in your SCons configuration.
+You can then type:
+
+  scons install
+    
+The simplest way to install ASCEND 'off-root' is something like:
+
+  scons INSTALL_PREFIX=~/ascroot
+  
+Note that if you install (or run) ASCEND off-root, you need to
+ensure that Linux can access the shared libraries. For example,
+in the above case, you would need to add
+
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/ascroot/lib
+
+------
+INSTALLING ON WINDOWS
+
+To build a Windows installer (a 'setup.exe') for the PyGTK GUI,
+you will need to have the NSIS installer-creator installed on
+your system (which is free, at http://nsis.sf.net/). Then you 
+should simply need to type
+
+  scons installer
+
+This will leave an installer package named 'ascend-NNNNN.exe'
+in the pygtk/interface directory, with NNNNN being the version number specified
+at the top of the SConstruct file.
+
+------
+A NOTE ABOUT PREFERENCES
+
+ASCEND PyGTK GUI stores your preferences in the file ~/.ascend.ini.
+The Tcl/Tk GUI creates a file under ~/ascdata.
+You may wish to check these files if ASCEND seems to be doing 
+something you didn't expect.
+
+------
+CREATING AN RPM/DEB PACKAGE
+
+Many users prefer to keep their systems clear of unpackaged
+software. For this reason, we aim to provide the ability to build 
+ASCEND as an RPM package. There is a "SPEC" file included in the
+source tree. If you have a source package, such as for example
+ascend-NNNNN.tar.bz2, place it in your home directory, then
+type the following
+
+  rpmbuild -ta ascend-NNNNN.tar.bz2
+
+This will pull out the 'spec' from from the source package, 
+which hopefully will be up to date in correspondance with the
+package version number NNNNN.
+
+You will then be able to install ASCEND using something like
+
+  rpm -i ~/rpm/ascend-NNNNN-0.jdpipe.i386.rpm
+
+Instructions for buildin the .deb package are available on the
+ASCEND wiki.
+
+NOTE: occasionally the 'ascend.spec' file may need to be updated
+if changes have been made to the 'ascend.spec.in' file. Check
+the implementation details in the SConstruct file.
+
+------
+GETTING SUPPORT AND FURTHER INFORMATION
+
+For support with ASCEND, details of mailing lists and other
+useful information, please visit
+
+ASCEND user's website:
+http://ascend.cheme.cmu.edu/
+
+ASCEND developer's wiki:
+https://ascendserver.cheme.cmu.edu/wiki/
+

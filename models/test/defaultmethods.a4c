@@ -1,0 +1,423 @@
+REQUIRE "system.a4l";
+
+ATOM var_default_one REFINES solver_var
+    DIMENSIONLESS
+    DEFAULT 1.0;
+    nominal := 100;
+    lower_bound := 0.0;
+    upper_bound := 10000;
+END var_default_one;
+
+ATOM var_default_two REFINES solver_var
+    DIMENSIONLESS
+    DEFAULT 2.0;
+    nominal := 100;
+    lower_bound := 0.0;
+    upper_bound := 10000;
+END var_default_two;
+
+(* check that the on_load method sets 'x' to 1.0 *)
+MODEL testdefault1;
+	x IS_A var_default_one;
+METHODS
+	METHOD self_test;
+		ASSERT x == 1.0;
+	END self_test;
+END testdefault1;
+
+(*
+	check that the 'default_self' default method sets x DEFAULT to 2.0,
+	even if we override on_load
+*)
+MODEL testdefault2;
+	x IS_A var_default_two;
+METHODS
+	METHOD on_load;
+		RUN default_self;
+	END on_load;
+	METHOD self_test;
+		ASSERT x == 2.0;
+	END self_test;
+END testdefault2;
+
+(* check the 'default' method gets called by on_load *)
+MODEL testdefault3;
+	x IS_A var_default_one;
+	y IS_A var_default_one;
+METHODS
+	METHOD default;
+		x := 3.0;
+	END default;
+	METHOD self_test;
+		ASSERT x == 3.0;
+	END self_test;
+END testdefault3;
+
+(* test that 'default' gets called even if defined in a parent model *)
+MODEL testdefault4 REFINES testdefault3;
+METHODS
+	METHOD self_test;
+		ASSERT x == 3.0;
+		ASSERT y == 1.0;
+	END self_test;
+END testdefault4;
+
+(* test that we can override a 'default' method defined in a parent model *)
+MODEL testdefault5 REFINES testdefault4;
+METHODS
+	METHOD default;
+		x := 4.0;
+	END default;
+	METHOD self_test;
+		ASSERT x == 4.0;
+		ASSERT y == 1.0;
+	END self_test;
+END testdefault5;
+
+(* test that a new 'default_self' method will kill the call to 'default' *)
+MODEL testdefault6 REFINES testdefault4;
+METHODS
+	METHOD default_self;
+		x := 5.0;
+		y := 6.0;
+	END default_self;
+	METHOD self_test;
+		ASSERT x == 5.0;
+		ASSERT y == 6.0;
+	END self_test;
+END testdefault6;
+
+(* test that 'default_self' goes inside arrays as well *)
+MODEL testdefault7;
+	x[1..3] IS_A var_default_two;
+	y[1..2] IS_A var_default_one;
+METHODS
+	METHOD self_test;
+		ASSERT x[1] == 2.0;
+		ASSERT x[2] == 2.0;
+		ASSERT x[3] == 2.0;
+		ASSERT y[1] == 1.0;
+		ASSERT y[2] == 1.0;
+	END self_test;
+END testdefault7;
+
+(* test that 'default_self' goes inside arrays inside parent types *)
+MODEL testdefault8 REFINES testdefault7;
+METHODS
+	METHOD self_test;
+		ASSERT x[1] == 2.0;
+		ASSERT x[2] == 2.0;
+		ASSERT x[3] == 2.0;
+		ASSERT y[1] == 1.0;
+		ASSERT y[2] == 1.0;
+	END self_test;
+END testdefault8;
+
+(* test that default_all recurses into submodels *)
+MODEL ModelA;
+	x IS_A var_default_one;
+	y IS_A var_default_two;
+END ModelA;
+
+MODEL ModelB;
+	z IS_A var_default_one;
+	w IS_A var_default_two;
+METHODS
+	METHOD default;
+		z := 3.0;
+		w := 4.0;
+	END default;
+END ModelB;
+
+MODEL testdefault9;
+	A IS_A ModelA;
+	B IS_A ModelB;
+METHODS
+	METHOD self_test;
+		ASSERT A.x == 1.0;
+		ASSERT A.y == 2.0;
+		ASSERT B.z == 3.0;
+		ASSERT B.w == 4.0;
+	END self_test;
+END testdefault9;
+
+(* test that default_all recurses into arrays containing submodels *)
+MODEL testdefault10;
+	A[1..2] IS_A ModelA;
+	B[1..2] IS_A ModelB;
+METHODS
+	METHOD self_test;
+		ASSERT A[1].x == 1.0;
+		ASSERT A[1].y == 2.0;
+		ASSERT A[2].x == 1.0;
+		ASSERT A[2].y == 2.0;
+		ASSERT B[1].z == 3.0;
+		ASSERT B[1].w == 4.0;
+		ASSERT B[2].z == 3.0;
+		ASSERT B[2].w == 4.0;
+	END self_test;
+END testdefault10;
+
+(* test that an override of default_all in a submodel gets found *)
+MODEL ModelC REFINES ModelA;
+METHODS
+	METHOD default_self;
+		x := 5.0;
+		y := 6.0;
+	END default_self;
+END ModelC;
+
+MODEL testdefault11;
+	A[1..2] IS_A ModelC;
+	B[1..2] IS_A ModelB;
+METHODS
+	METHOD self_test;
+		ASSERT A[1].x == 5.0;
+		ASSERT A[1].y == 6.0;
+		ASSERT A[2].x == 5.0;
+		ASSERT A[2].y == 6.0;
+		ASSERT B[1].z == 3.0;
+		ASSERT B[1].w == 4.0;
+		ASSERT B[2].z == 3.0;
+		ASSERT B[2].w == 4.0;
+	END self_test;
+END testdefault11;
+
+(* test what happens when two variables are ARE_THE_SAMEd *)
+MODEL testdefault12;
+	x IS_A var_default_one;
+	y IS_A var_default_one;
+	x,y ARE_THE_SAME;
+METHODS
+	METHOD default;
+		x := 2.0;
+	END default;
+	METHOD self_test;
+		ASSERT x == 2.0;
+		ASSERT y == 2.0;
+	END self_test;
+END testdefault12;
+
+(* when two models are ARE_THE_SAMEd, the default_all is kept *)
+MODEL testdefault13;
+	A IS_A ModelA;
+	C IS_A ModelC;
+	A,C ARE_THE_SAME;
+METHODS
+	METHOD self_test;
+		ASSERT A.x == 5.0;
+		ASSERT A.y == 6.0;
+		ASSERT C.x == 5.0;
+		ASSERT C.y == 6.0;
+	END self_test;
+END testdefault13;
+
+(* override default value for one var inside one of two are-the-same submodels *) 
+MODEL ModelD;
+	A IS_A ModelA;
+END ModelD;
+
+MODEL testdefault14;
+	A IS_A ModelA;
+	D IS_A ModelD;
+	A,D.A ARE_THE_SAME;
+METHODS
+	METHOD default;
+		A.x := 7.0;
+	END default;
+	METHOD self_test;
+		ASSERT A.x == 7.0;
+		ASSERT A.y == 2.0;
+		ASSERT D.A.x == 7.0;
+		ASSERT D.A.y == 2.0;
+	END self_test;
+END testdefault14;
+
+(* override 'default' method inside one of two are-the-same submodels *) 
+MODEL ModelD1;
+	A IS_A ModelA;
+METHODS
+	METHOD default;
+		A.y := 8.0;
+	END default;
+END ModelD1;
+
+MODEL testdefault15;
+	A IS_A ModelA;
+	D IS_A ModelD1;
+	A,D.A ARE_THE_SAME;
+METHODS
+	METHOD default;
+		A.x := 7.0;
+	END default;
+	METHOD self_test;
+		ASSERT A.x == 7.0;
+		ASSERT A.y == 8.0;
+	END self_test;
+END testdefault15;
+
+(* behaviour in this case is undefined, @TODO warn user about use of ARE_THE_SAME *) 
+MODEL ModelE REFINES ModelA;
+METHODS
+	METHOD default;
+		y := 9.0;
+	END default;
+END ModelE;
+
+MODEL ModelF;
+	E IS_A ModelE;
+METHODS
+	METHOD default;
+		E.y := 8.0;
+	END default;
+END ModelF;
+
+MODEL testdefault16;
+	E IS_A ModelE;
+	F IS_A ModelF;
+	F.E, E ARE_THE_SAME;
+METHODS
+	METHOD default;
+		E.x := 7.0;
+	END default;
+	METHOD self_test;
+		ASSERT E.x == 7.0;
+		ASSERT E.y == 8.0;
+	END self_test;
+END testdefault16;
+
+(* test with some tricky set notation (see following, related) *)
+MODEL testdefault17;
+	nodes,head,tail IS_A set OF integer_constant;
+	x IS_A var_default_one;
+	n IS_A integer_constant;
+	n :== 3;
+	nodes :== [1..n];
+	head :== [1];
+	tail :== nodes - head;
+	y[1..n] IS_A var_default_two;
+	FOR i IN head CREATE
+		y_eq[i]: y[i] = x;
+	END FOR;
+	FOR i IN tail CREATE
+		y_eq2[i]: y[i] = y[i-1];
+	END FOR;
+METHODS
+	METHOD self_test;
+		ASSERT x == 1.0;
+		ASSERT y[1] == 2.0;
+		ASSERT y[1] == 2.0;
+		ASSERT y[1] == 2.0;
+	END self_test;
+END testdefault17;
+
+(* test with NULL children *)
+MODEL testdefault18;
+	nodes,head,tail IS_A set OF integer_constant;
+	x IS_A var_default_one;
+	n IS_A integer_constant;
+	n :== 3;
+	nodes :== [1..n];
+	head :== [1,2,3];
+	tail :== nodes - head;
+	y[1..n] IS_A var_default_two;
+	FOR i IN head CREATE
+		y_eq[i]: y[i] = x;
+	END FOR;
+	FOR i IN tail CREATE (* empty list *)
+		y_eq2[i]: y[i] = y[i-1];
+	END FOR;
+METHODS
+	METHOD self_test;
+		ASSERT x == 1.0;
+		ASSERT y[1] == 2.0;
+		ASSERT y[1] == 2.0;
+		ASSERT y[1] == 2.0;
+	END self_test;
+END testdefault18;
+
+(* test of double-nested methods: this one fails *)
+MODEL testdefault19A;
+	v1 IS_A var_default_one;
+	v2 IS_A var_default_two;
+END testdefault19A;
+MODEL testdefault19B;
+	v1 IS_A var_default_one;
+	v2 IS_A var_default_two;
+METHODS
+	METHOD default;
+		v1 := 5;
+	END default;
+END testdefault19B;
+MODEL testdefault19C;
+	v1 IS_A var_default_one;
+	v2 IS_A var_default_two;
+END testdefault19C;
+
+(* this one passes *)
+MODEL testdefault19;
+	A1 IS_A testdefault19A;
+	A2 IS_A testdefault19B;
+	A1.v1, A2.v1 ARE_THE_SAME;
+METHODS
+	METHOD self_test;
+		ASSERT A1.v1 == 5.0;
+		ASSERT A1.v2 == 2.0;
+		ASSERT A2.v1 == 5.0;
+		ASSERT A2.v2 == 2.0;
+	END self_test;
+END testdefault19;
+
+(* this one FAILS. same at the above but initialisation order has changed *)
+MODEL testdefault19fail;
+	A1 IS_A testdefault19B;
+	A2 IS_A testdefault19C;
+	A1.v1, A2.v1 ARE_THE_SAME;
+METHODS
+	METHOD self_test;
+		ASSERT A1.v1 == 5.0;
+		ASSERT A1.v2 == 2.0;
+		ASSERT A2.v1 == 5.0;
+		ASSERT A2.v2 == 2.0;
+	END self_test;
+END testdefault19fail;
+
+(* this one passes *)
+MODEL testdefault20;
+	A1 IS_A testdefault19A;
+	A2 IS_A testdefault19B;
+	A1.v1, A2.v1 ARE_THE_SAME;
+METHODS
+	METHOD on_load;
+		RUN default_self;
+		RUN reset; RUN values;
+	END on_load;
+	METHOD self_test;
+		ASSERT A1.v1 == 5.0;
+		ASSERT A1.v2 == 2.0;
+		ASSERT A2.v1 == 5.0;
+		ASSERT A2.v2 == 2.0;
+	END self_test;
+END testdefault20;
+
+
+(* this one FAILS MYSTERIOUSLY *)
+MODEL testdefault20fail;
+	A1 IS_A testdefault19A;
+	A2 IS_A testdefault19B;
+	A1.v1, A2.v1 ARE_THE_SAME;
+METHODS
+	METHOD default_all;
+		RUN default_self;
+	END default_all;
+	METHOD on_load;
+		RUN default_all;
+		RUN reset; RUN values;
+	END on_load;
+	METHOD self_test;
+		ASSERT A1.v1 == 5.0;
+		ASSERT A1.v2 == 2.0;
+		ASSERT A2.v1 == 5.0;
+		ASSERT A2.v2 == 2.0;
+	END self_test;
+END testdefault20fail;
